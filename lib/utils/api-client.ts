@@ -2,13 +2,13 @@
  * API Client utilities for Microsoft Graph integration
  */
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
   };
 }
 
@@ -49,7 +49,7 @@ export const HTTP_STATUS = {
  */
 export function createApiError(
   response: Response,
-  data?: any
+  data?: Record<string, unknown>
 ): ApiResponse {
   const error = {
     code: `HTTP_${response.status}`,
@@ -66,7 +66,7 @@ export function createApiError(
 /**
  * Generic API request function with retry logic
  */
-export async function apiRequest<T = any>(
+export async function apiRequest<T = unknown>(
   url: string,
   options: RequestInit = {},
   retries: number = API_CONFIG.retries
@@ -166,7 +166,7 @@ export async function apiRequest<T = any>(
 /**
  * GET request helper
  */
-export async function apiGet<T = any>(
+export async function apiGet<T = unknown>(
   endpoint: string,
   params?: Record<string, string | number | boolean>
 ): Promise<ApiResponse<T>> {
@@ -186,9 +186,9 @@ export async function apiGet<T = any>(
 /**
  * POST request helper
  */
-export async function apiPost<T = any>(
+export async function apiPost<T = unknown>(
   endpoint: string,
-  data?: any
+  data?: Record<string, unknown>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, {
     method: 'POST',
@@ -199,9 +199,9 @@ export async function apiPost<T = any>(
 /**
  * PUT request helper
  */
-export async function apiPut<T = any>(
+export async function apiPut<T = unknown>(
   endpoint: string,
-  data?: any
+  data?: Record<string, unknown>
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, {
     method: 'PUT',
@@ -212,7 +212,7 @@ export async function apiPut<T = any>(
 /**
  * DELETE request helper
  */
-export async function apiDelete<T = any>(
+export async function apiDelete<T = unknown>(
   endpoint: string
 ): Promise<ApiResponse<T>> {
   return apiRequest<T>(endpoint, { method: 'DELETE' });
@@ -227,8 +227,8 @@ export const authApi = {
    */
   getSession: () => apiGet<{
     authenticated: boolean;
-    user?: any;
-    session?: any;
+    user?: Record<string, unknown>;
+    session?: Record<string, unknown>;
   }>('/api/auth/session'),
 
   /**
@@ -266,12 +266,12 @@ export const graphApi = {
     search?: string;
     limit?: number;
     filter?: string;
-  }) => apiGet<PaginatedResponse<any>>('/api/graph/users', params),
+  }) => apiGet<PaginatedResponse<Record<string, unknown>>>('/api/graph/users', params),
 
   /**
    * Get specific user
    */
-  getUser: (userId: string) => apiGet<{ user: any }>(`/api/graph/users/${userId}`),
+  getUser: (userId: string) => apiGet<{ user: Record<string, unknown> }>(`/api/graph/users/${userId}`),
 
   /**
    * Get user mail
@@ -279,7 +279,7 @@ export const graphApi = {
   getUserMail: (userId: string, params?: {
     limit?: number;
     unreadOnly?: boolean;
-  }) => apiGet<PaginatedResponse<any>>(`/api/graph/mail/${userId}`, params),
+  }) => apiGet<PaginatedResponse<Record<string, unknown>>>(`/api/graph/mail/${userId}`, params),
 
   /**
    * Send mail
@@ -302,7 +302,7 @@ export const graphApi = {
     limit?: number;
     startDate?: string;
     endDate?: string;
-  }) => apiGet<PaginatedResponse<any>>(`/api/graph/calendar/${userId}`, params)
+  }) => apiGet<PaginatedResponse<Record<string, unknown>>>(`/api/graph/calendar/${userId}`, params)
 };
 
 /**
@@ -331,11 +331,11 @@ export function handleApiResponse<T>(
 /**
  * Create a typed API client for specific endpoints
  */
-export function createApiClient<T extends Record<string, any>>(
+export function createApiClient<T extends Record<string, unknown>>(
   baseEndpoint: string
 ) {
   return {
-    list: (params?: Record<string, any>) =>
+    list: (params?: Record<string, unknown>) =>
       apiGet<PaginatedResponse<T>>(`${baseEndpoint}`, params),
 
     get: (id: string) =>

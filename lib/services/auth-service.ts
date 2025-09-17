@@ -1,10 +1,10 @@
-import jwt from 'jsonwebtoken';
-import { NextRequest } from 'next/server';
+// JWT and NextRequest imports removed as they are not used in this file
 import {
   AuthenticationResult,
   StoredTokenData,
   MicrosoftUser,
-  AuthSession
+  AuthSession,
+  TokenResponse
 } from '../types/microsoft-graph';
 import {
   MICROSOFT_GRAPH_CONFIG,
@@ -108,7 +108,7 @@ export class AuthService {
       const userInfo = await this.getUserFromToken(tokenResponse.access_token);
 
       // Store encrypted tokens
-      const storedToken = await this.storeTokens(userInfo.id, tokenResponse);
+      await this.storeTokens(userInfo.id, tokenResponse);
 
       await this.logAuthAttempt({
         user_id: userInfo.id,
@@ -153,7 +153,7 @@ export class AuthService {
   /**
    * Request tokens from Microsoft
    */
-  private async requestTokens(code: string): Promise<any> {
+  private async requestTokens(code: string): Promise<TokenResponse> {
     const tokenEndpoint = `https://login.microsoftonline.com/${MICROSOFT_GRAPH_CONFIG.tenantId}/oauth2/v2.0/token`;
 
     const body = new URLSearchParams({
@@ -209,7 +209,7 @@ export class AuthService {
   /**
    * Store encrypted tokens in database
    */
-  private async storeTokens(userId: string, tokenResponse: any): Promise<StoredTokenData> {
+  private async storeTokens(userId: string, tokenResponse: TokenResponse): Promise<StoredTokenData> {
     const expiresAt = new Date(Date.now() + tokenResponse.expires_in * 1000);
 
     const tokenData = {
@@ -318,7 +318,7 @@ export class AuthService {
   /**
    * Request new tokens using refresh token
    */
-  private async requestRefreshToken(refreshToken: string): Promise<any> {
+  private async requestRefreshToken(refreshToken: string): Promise<TokenResponse> {
     const tokenEndpoint = `https://login.microsoftonline.com/${MICROSOFT_GRAPH_CONFIG.tenantId}/oauth2/v2.0/token`;
 
     const body = new URLSearchParams({
@@ -458,7 +458,7 @@ export class AuthService {
   /**
    * Log authentication attempt
    */
-  private async logAuthAttempt(attempt: Omit<any, 'id' | 'created_at'>): Promise<void> {
+  private async logAuthAttempt(attempt: Omit<import('../types/microsoft-graph').AuthenticationAttempt, 'id' | 'created_at'>): Promise<void> {
     try {
       await AuthAttemptLogger.logAttempt(attempt);
     } catch (error) {

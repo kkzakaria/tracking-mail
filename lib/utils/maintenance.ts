@@ -267,7 +267,7 @@ export async function scheduledMaintenance(): Promise<void> {
  */
 export async function backupConfiguration(): Promise<{
   timestamp: string;
-  configuration: Record<string, any>;
+  configuration: Record<string, unknown>;
 }> {
   return {
     timestamp: new Date().toISOString(),

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { MicrosoftUser } from '../types/microsoft-graph';
+import { MicrosoftUser, GraphApiMessage, GraphApiEvent } from '../types/microsoft-graph';
 
 interface UseGraphOptions {
   autoRefresh?: boolean;
@@ -15,7 +15,7 @@ interface GraphState<T> {
 }
 
 interface GraphActions<T> {
-  execute: (...args: any[]) => Promise<T | undefined>;
+  execute: (...args: unknown[]) => Promise<T | undefined>;
   refresh: () => Promise<T | undefined>;
   reset: () => void;
 }
@@ -24,16 +24,16 @@ interface GraphActions<T> {
  * Generic hook for Microsoft Graph API calls
  */
 export function useGraph<T>(
-  apiCall: (...args: any[]) => Promise<Response>,
+  apiCall: (...args: unknown[]) => Promise<Response>,
   options: UseGraphOptions = {}
 ): GraphState<T> & GraphActions<T> {
-  const { autoRefresh = false, retries = 3 } = options;
+  const { retries = 3 } = options;
   const [state, setState] = useState<GraphState<T>>({
     loading: false
   });
-  const [lastArgs, setLastArgs] = useState<any[]>([]);
+  const [lastArgs, setLastArgs] = useState<unknown[]>([]);
 
-  const execute = useCallback(async (...args: any[]): Promise<T | undefined> => {
+  const execute = useCallback(async (...args: unknown[]): Promise<T | undefined> => {
     setState(prev => ({ ...prev, loading: true, error: undefined }));
     setLastArgs(args);
 
@@ -147,7 +147,7 @@ export function useUser(userId?: string, options: UseGraphOptions = {}) {
     if (userId) {
       return result.execute(userId);
     }
-  }, [userId, result.execute]);
+  }, [userId, result]);
 
   return {
     ...result,
@@ -173,7 +173,7 @@ export function useUserMail(userId?: string, options: UseGraphOptions = {}) {
   }, []);
 
   const result = useGraph<{
-    messages: any[];
+    messages: GraphApiMessage[];
     total: number;
     hasMore: boolean;
     unreadOnly: boolean;
@@ -186,7 +186,7 @@ export function useUserMail(userId?: string, options: UseGraphOptions = {}) {
     if (userId) {
       return result.execute(userId, mailParams);
     }
-  }, [userId, result.execute]);
+  }, [userId, result]);
 
   return {
     ...result,
@@ -238,7 +238,7 @@ export function useUserCalendar(userId?: string, options: UseGraphOptions = {}) 
   }, []);
 
   const result = useGraph<{
-    events: any[];
+    events: GraphApiEvent[];
     total: number;
     hasMore: boolean;
     dateRange: {
@@ -255,7 +255,7 @@ export function useUserCalendar(userId?: string, options: UseGraphOptions = {}) 
     if (userId) {
       return result.execute(userId, calendarParams);
     }
-  }, [userId, result.execute]);
+  }, [userId, result]);
 
   return {
     ...result,
@@ -270,7 +270,7 @@ export function useBatchGraph() {
   const [operations, setOperations] = useState<Array<{
     id: string;
     request: () => Promise<Response>;
-    state: GraphState<any>;
+    state: GraphState<unknown>;
   }>>([]);
 
   const addOperation = useCallback((id: string, request: () => Promise<Response>) => {

@@ -120,18 +120,17 @@ export async function withRateLimit(
   } = {}
 ): Promise<NextResponse> {
   const {
-    maxRequests = 100,
     windowMs = 60000, // 1 minute
     keyGenerator = (req) => req.ip || 'unknown'
   } = options;
 
   try {
-    const key = keyGenerator(request);
+    const _key = keyGenerator(request);
 
     // In a production environment, you would use Redis or another store
     // For now, we'll use a simple in-memory store (not recommended for production)
     const now = Date.now();
-    const windowStart = now - windowMs;
+    const _windowStart = now - windowMs;
 
     // This would be replaced with proper rate limiting storage
     // For demonstration purposes only

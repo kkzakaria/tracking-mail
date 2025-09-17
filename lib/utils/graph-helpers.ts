@@ -168,7 +168,7 @@ export function groupUsersByDepartment(users: MicrosoftUser[]): Record<string, M
 /**
  * Format email message for display
  */
-export function formatEmailMessage(message: any) {
+export function formatEmailMessage(message: Record<string, unknown>) {
   return {
     id: message.id,
     subject: message.subject || 'No Subject',
@@ -185,7 +185,7 @@ export function formatEmailMessage(message: any) {
 /**
  * Format calendar event for display
  */
-export function formatCalendarEvent(event: any) {
+export function formatCalendarEvent(event: Record<string, unknown>) {
   return {
     id: event.id,
     subject: event.subject || 'No Subject',

@@ -70,7 +70,7 @@ export async function GET(
     // Filter for unread messages if requested
     let filteredMessages = messages;
     if (unreadOnly) {
-      filteredMessages = messages.filter((message: any) => !message.isRead);
+      filteredMessages = messages.filter((message: Record<string, unknown>) => !message.isRead);
     }
 
     // Apply limit

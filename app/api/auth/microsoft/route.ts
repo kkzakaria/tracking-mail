@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const _userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Check rate limiting
     const authService = AuthService.getInstance();
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const _userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Validate state parameter against cookie
     const storedState = request.cookies.get('oauth_state')?.value;
@@ -204,7 +204,7 @@ export async function DELETE(request: NextRequest) {
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const userAgent = request.headers.get('user-agent') || 'unknown';
+    const _userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Logout user
     const authService = AuthService.getInstance();

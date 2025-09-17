@@ -13,7 +13,7 @@ export default function AuthError() {
       case 'access_denied':
         return {
           title: 'Accès Refusé',
-          message: 'Vous avez refusé l\'autorisation d\'accès à l\'application.',
+          message: 'Vous avez refusé l&apos;autorisation d&apos;accès à l&apos;application.',
           suggestion: 'Pour utiliser l\'application, vous devez accepter les permissions demandées.'
         };
       case 'invalid_request':
@@ -31,13 +31,13 @@ export default function AuthError() {
       case 'server_error':
         return {
           title: 'Erreur Serveur',
-          message: 'Une erreur inattendue s\'est produite sur le serveur.',
+          message: 'Une erreur inattendue s&apos;est produite sur le serveur.',
           suggestion: 'Veuillez réessayer dans quelques minutes. Si le problème persiste, contactez l\'administrateur.'
         };
       case 'token_exchange_failed':
         return {
           title: 'Échec d\'Échange de Token',
-          message: 'L\'échange du code d\'autorisation contre un token d\'accès a échoué.',
+          message: 'L&apos;échange du code d&apos;autorisation contre un token d&apos;accès a échoué.',
           suggestion: 'Cette erreur peut être temporaire. Veuillez réessayer de vous connecter.'
         };
       case 'temporarily_unavailable':
@@ -73,7 +73,7 @@ export default function AuthError() {
       default:
         return {
           title: 'Erreur d\'Authentification',
-          message: description || 'Une erreur d\'authentification inattendue s\'est produite.',
+          message: description || 'Une erreur d&apos;authentification inattendue s&apos;est produite.',
           suggestion: 'Veuillez réessayer de vous connecter. Si le problème persiste, contactez l\'administrateur.'
         };
     }
@@ -146,7 +146,7 @@ export default function AuthError() {
                 <div className="mt-2 bg-gray-50 border border-gray-200 rounded-md p-3">
                   {error && (
                     <p className="text-sm text-gray-600 mb-2">
-                      <strong>Code d'erreur:</strong> {error}
+                      <strong>Code d&apos;erreur:</strong> {error}
                     </p>
                   )}
                   {description && (
@@ -171,15 +171,15 @@ export default function AuthError() {
                 href="/"
                 className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Retour à l'Accueil
+                Retour à l&apos;Accueil
               </Link>
             </div>
 
             {/* Support Information */}
             <div className="mt-8 pt-6 border-t border-gray-200">
               <p className="text-xs text-gray-500 text-center">
-                Si vous continuez à rencontrer des problèmes, veuillez contacter l'administrateur système
-                avec le code d'erreur affiché ci-dessus.
+                Si vous continuez à rencontrer des problèmes, veuillez contacter l&apos;administrateur système
+                avec le code d&apos;erreur affiché ci-dessus.
               </p>
             </div>
           </div>

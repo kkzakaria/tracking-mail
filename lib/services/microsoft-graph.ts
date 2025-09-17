@@ -1,16 +1,12 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { ConfidentialClientApplication, ClientCredentialRequest } from '@azure/msal-node';
 import {
-  TokenResponse,
   MicrosoftUser,
-  AuthenticationResult,
-  GraphApiError,
   GraphRequestOptions,
-  RateLimitInfo
+  RateLimitInfo,
+  GraphApiUser
 } from '../types/microsoft-graph';
-import { MICROSOFT_GRAPH_CONFIG, GRAPH_ENDPOINTS, RATE_LIMIT_CONFIG } from '../config/microsoft-graph';
-import { encryptToken, decryptToken } from '../utils/encryption';
-import { TokenStorage, AuthAttemptLogger } from './supabase-client';
+import { MICROSOFT_GRAPH_CONFIG, RATE_LIMIT_CONFIG } from '../config/microsoft-graph';
 
 /**
  * Microsoft Graph API Service
@@ -124,7 +120,7 @@ export class MicrosoftGraphService {
           options
         );
 
-        users = users.concat(response.value.map((user: any) => ({
+        users = users.concat(response.value.map((user: GraphApiUser) => ({
           id: user.id,
           displayName: user.displayName,
           mail: user.mail,
@@ -171,7 +167,7 @@ export class MicrosoftGraphService {
   /**
    * Send email on behalf of user
    */
-  async sendMail(userId: string, message: any, accessToken?: string, options?: GraphRequestOptions) {
+  async sendMail(userId: string, message: Record<string, unknown>, accessToken?: string, options?: GraphRequestOptions) {
     try {
       const client = await this.createGraphClient(accessToken);
 
@@ -273,7 +269,7 @@ export class MicrosoftGraphService {
   /**
    * Handle Graph API errors
    */
-  private handleGraphError(error: any): Error {
+  private handleGraphError(error: unknown): Error {
     if (error?.code) {
       const graphError: GraphApiError = error;
       return new Error(`Microsoft Graph API Error: ${graphError.code} - ${graphError.message}`);
@@ -289,7 +285,7 @@ export class MicrosoftGraphService {
   /**
    * Check if error is authentication related
    */
-  private isAuthenticationError(error: any): boolean {
+  private isAuthenticationError(error: unknown): boolean {
     const authCodes = ['InvalidAuthenticationToken', 'AuthenticationFailed', 'Forbidden', 'Unauthorized'];
     return authCodes.some(code =>
       error?.code === code ||
@@ -301,7 +297,7 @@ export class MicrosoftGraphService {
   /**
    * Check if error is rate limiting related
    */
-  private isRateLimitError(error: any): boolean {
+  private isRateLimitError(error: unknown): boolean {
     return error?.code === 'TooManyRequests' ||
            error?.response?.status === 429;
   }
@@ -335,7 +331,7 @@ export class MicrosoftGraphService {
   /**
    * Update rate limit information
    */
-  private updateRateLimitInfo(headers?: any): void {
+  private updateRateLimitInfo(headers?: Record<string, string>): void {
     if (!headers) return;
 
     const remaining = parseInt(headers['x-ratelimit-remaining'] || '0');
