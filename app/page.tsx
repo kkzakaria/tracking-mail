@@ -29,12 +29,12 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen gradient-bg relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-700 relative overflow-hidden">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-white/10 animate-float"></div>
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-white/5 animate-pulse-slow"></div>
-        <div className="absolute top-1/2 left-1/4 w-32 h-32 rounded-full bg-white/10 animate-pulse-slow"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-white/10 animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-white/5 animate-pulse"></div>
+        <div className="absolute top-1/2 left-1/4 w-32 h-32 rounded-full bg-white/10 animate-bounce"></div>
       </div>
 
       <div className="relative flex items-center justify-center min-h-screen p-4">
@@ -43,8 +43,8 @@ export default function Home() {
           <div className="text-center mb-16">
             <div className="flex items-center justify-center mb-8">
               <div className="relative group">
-                <div className="p-6 glass-card rounded-3xl shadow-glow hover-lift">
-                  <Mail className="h-16 w-16 text-white animate-float" />
+                <div className="p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <Mail className="h-16 w-16 text-white animate-bounce" />
                 </div>
                 <div className="absolute inset-0 rounded-3xl bg-gradient-to-r from-blue-600/20 to-purple-600/20 blur-xl -z-10 group-hover:blur-2xl transition-all duration-300"></div>
               </div>
@@ -63,7 +63,7 @@ export default function Home() {
 
           {/* Features Grid */}
           <div className="grid md:grid-cols-3 gap-8 mb-16">
-            <div className="glass-card rounded-2xl p-8 hover-lift group">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
               <div className="relative mb-6">
                 <div className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl w-fit mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300">
                   <Mail className="h-8 w-8 text-white" />
@@ -79,7 +79,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="glass-card rounded-2xl p-8 hover-lift group">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
               <div className="relative mb-6">
                 <div className="p-4 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl w-fit mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300">
                   <RefreshCw className="h-8 w-8 text-white animate-spin group-hover:animate-spin" />
@@ -95,7 +95,7 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="glass-card rounded-2xl p-8 hover-lift group">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group">
               <div className="relative mb-6">
                 <div className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl w-fit mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300">
                   <ArrowRight className="h-8 w-8 text-white group-hover:translate-x-1 transition-transform duration-300" />
@@ -114,7 +114,7 @@ export default function Home() {
 
           {/* Call to Action */}
           <div className="text-center">
-            <div className="glass-card rounded-3xl p-10 relative overflow-hidden group">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl p-10 relative overflow-hidden group">
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-white/5 group-hover:from-white/15 group-hover:to-white/10 transition-all duration-500"></div>
               <div className="relative">
                 <div className="inline-flex items-center justify-center p-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl mb-6 shadow-lg">
