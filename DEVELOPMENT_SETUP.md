@@ -20,6 +20,7 @@ Configuration TypeScript avec des règles strictes mais équilibrées :
 - ✅ **Clean Builds** : `noErrorTruncation`, `pretty`
 
 **Rules pragmatiques** (désactivées pour éviter la friction) :
+
 - `noPropertyAccessFromIndexSignature: false` - Permet `obj.prop` vs `obj['prop']`
 - `exactOptionalPropertyTypes: false` - Plus flexible avec les propriétés optionnelles
 - `noUnusedLocals/Parameters: false` - Géré par ESLint avec plus de flexibilité
@@ -31,6 +32,7 @@ Configuration TypeScript avec des règles strictes mais équilibrées :
 Configuration ESLint avec règles strictes pour la qualité :
 
 #### TypeScript Rules
+
 - ❌ **`@typescript-eslint/no-explicit-any`: "error"** - Interdiction du type `any`
 - ⚠️ **`@typescript-eslint/no-non-null-assertion`: "warn"** - Attention aux `!`
 - ❌ **`@typescript-eslint/prefer-nullish-coalescing`** - Utiliser `??` au lieu de `||`
@@ -38,11 +40,13 @@ Configuration ESLint avec règles strictes pour la qualité :
 - ❌ **`@typescript-eslint/strict-boolean-expressions`** - Expressions booléennes strictes
 
 #### React Rules
+
 - ❌ **`react-hooks/exhaustive-deps`** - Dependencies complètes dans les hooks
 - ❌ **`react/no-unescaped-entities`** - Échapper les entités HTML
 - ❌ **`react/jsx-key`** - Keys obligatoires dans les listes
 
 #### Security Rules
+
 - ❌ **`no-eval`, `no-new-func`** - Interdiction d'exécution de code dynamique
 - ❌ **`no-script-url`** - Pas d'URLs javascript:
 
@@ -50,13 +54,15 @@ Configuration ESLint avec règles strictes pour la qualité :
 
 **Fichiers**: `.vscode/settings.json`, `.vscode/tasks.json`, `.vscode/extensions.json`
 
-#### Auto-detection en temps réel :
+#### Auto-detection en temps réel
+
 - **ESLint** : Erreurs soulignées pendant la saisie
 - **TypeScript** : Vérification de types instantanée
 - **Error Lens** : Affichage des erreurs inline
 - **Auto-fix** : Correction automatique à la sauvegarde
 
-#### Extensions recommandées :
+#### Extensions recommandées
+
 - `dbaeumer.vscode-eslint` - ESLint integration
 - `usernamehw.errorlens` - Inline error display
 - `ms-vscode.vscode-typescript-next` - TypeScript avancé
@@ -67,6 +73,7 @@ Configuration ESLint avec règles strictes pour la qualité :
 **Fichier**: `.github/workflows/ci.yml`
 
 Pipeline CI automatique qui vérifie :
+
 - ✅ **Type Check** : `pnpm run type-check`
 - ✅ **Linting** : `pnpm run lint`
 - ✅ **Build** : `pnpm run build`
@@ -77,6 +84,7 @@ Pipeline CI automatique qui vérifie :
 **Fichier**: `.husky/pre-commit`
 
 Vérifications automatiques avant chaque commit :
+
 - Type checking complet
 - Linting avec auto-fix
 - Formatting avec Prettier
@@ -102,6 +110,7 @@ pnpm run ci                   # Simulation pipeline CI
 **Fichiers**: `.prettierrc`, `.prettierignore`
 
 Formatage automatique du code avec :
+
 - Single quotes, semicolons
 - 100 caractères par ligne
 - Trailing commas ES5
@@ -110,21 +119,25 @@ Formatage automatique du code avec :
 ## 📊 Monitoring d'Erreurs
 
 ### Dans VS Code
+
 - **Problems Panel** : Toutes les erreurs centralisées
 - **Error Lens** : Erreurs affichées inline
 - **TypeScript Inlay Hints** : Types affichés automatiquement
 
 ### En ligne de commande
+
 - **TypeScript** : `pnpm run type-check` - 0 erreur = ✅
 - **ESLint** : `pnpm run lint` - 0 warning/error = ✅
 
 ### Dans CI/CD
+
 - **GitHub Actions** : Échec automatique si erreurs détectées
 - **Branch Protection** : Merge bloqué si CI échoue
 
 ## 🔧 Personnalisation
 
 ### Ajouter une règle ESLint
+
 Éditez `.eslintrc.json` dans la section `"rules"` :
 
 ```json
@@ -136,6 +149,7 @@ Formatage automatique du code avec :
 ```
 
 ### Modifier la config TypeScript
+
 Éditez `tsconfig.json` dans `"compilerOptions"` :
 
 ```json
@@ -147,6 +161,7 @@ Formatage automatique du code avec :
 ```
 
 ### Désactiver une règle temporairement
+
 ```typescript
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const data: any = response;
