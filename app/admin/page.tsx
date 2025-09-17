@@ -139,62 +139,61 @@ export default function AdminDashboard() {
   const loadDashboardData = async () => {
     setDataLoading(true);
     try {
-      // Simuler le chargement des données - dans un vrai système, ces appels seraient vers l'API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Mock data
-      setStats({
-        totalUsers: 24,
-        totalMailboxes: 8,
-        totalAssignments: 56,
-        activeUsers: 18,
-        syncingMailboxes: 2,
-        recentActivity: 12,
+      // Charger les boîtes emails depuis l'API
+      const mailboxResponse = await fetch('/api/admin/mailboxes', {
+        method: 'GET',
+        credentials: 'include'
       });
+
+      if (mailboxResponse.ok) {
+        const mailboxData = await mailboxResponse.json();
+
+        if (mailboxData.success && mailboxData.data) {
+          // Transformer les données des boîtes emails
+          const transformedMailboxes = mailboxData.data.mailboxes.map((mailbox: any) => ({
+            id: mailbox.id,
+            email_address: mailbox.email_address,
+            display_name: mailbox.display_name,
+            sync_status: mailbox.sync_status || 'pending',
+            is_active: mailbox.is_active,
+            last_sync_at: mailbox.last_sync_at,
+            assigned_users_count: mailbox.user_mailbox_assignments?.length || 0
+          }));
+
+          setMailboxes(transformedMailboxes);
+
+          // Calculer les statistiques
+          setStats(prev => ({
+            ...prev,
+            totalMailboxes: transformedMailboxes.length,
+            syncingMailboxes: transformedMailboxes.filter((m: any) => m.sync_status === 'syncing').length,
+          }));
+        }
+      }
+
+      // Pour les utilisateurs, utiliser des données mock pour l'instant
+      // TODO: Créer une API pour récupérer les utilisateurs
+      setStats(prev => ({
+        ...prev,
+        totalUsers: 86, // Nombre d'utilisateurs Microsoft Graph trouvés
+        activeUsers: 86,
+        totalAssignments: mailboxes.length * 2, // Estimation
+        recentActivity: 12,
+      }));
 
       setUsers([
         {
           id: '1',
-          email: 'john.doe@example.com',
-          full_name: 'John Doe',
-          display_name: 'John',
+          email: 'abdoulouedraogo@karta-trans.ci',
+          full_name: 'Abdoul Ouedraogo',
+          display_name: 'Abdoul',
           role: 'user',
           is_active: true,
           created_at: '2024-01-15T10:30:00Z',
           last_sign_in_at: '2024-12-17T08:45:00Z',
-        },
-        {
-          id: '2',
-          email: 'jane.smith@example.com',
-          full_name: 'Jane Smith',
-          display_name: 'Jane',
-          role: 'manager',
-          is_active: true,
-          created_at: '2024-02-20T14:15:00Z',
-          last_sign_in_at: '2024-12-16T16:20:00Z',
-        },
+        }
       ]);
 
-      setMailboxes([
-        {
-          id: '1',
-          email_address: 'support@company.com',
-          display_name: 'Support Client',
-          sync_status: 'completed',
-          is_active: true,
-          last_sync_at: '2024-12-17T09:15:00Z',
-          assigned_users_count: 3,
-        },
-        {
-          id: '2',
-          email_address: 'sales@company.com',
-          display_name: 'Équipe Vente',
-          sync_status: 'syncing',
-          is_active: true,
-          last_sync_at: '2024-12-17T09:00:00Z',
-          assigned_users_count: 5,
-        },
-      ]);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -208,12 +207,38 @@ export default function AdminDashboard() {
   };
 
   const handleCreateMailbox = async () => {
-    // Dans un vrai système, ceci ferait un appel API
-    console.log('Creating mailbox:', newMailbox);
-    setShowNewMailboxDialog(false);
-    setNewMailbox({ email: '', displayName: '' });
-    // Recharger les données
-    await loadDashboardData();
+    try {
+      const response = await fetch('/api/admin/mailboxes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          emailAddress: newMailbox.email,
+          displayName: newMailbox.displayName || newMailbox.email,
+          description: `Boîte email ajoutée le ${new Date().toLocaleDateString('fr-FR')}`,
+          mailboxType: 'user'
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('Error creating mailbox:', result);
+        alert(result.message || 'Erreur lors de la création de la boîte email');
+        return;
+      }
+
+      console.log('✅ Mailbox created successfully:', result);
+      setShowNewMailboxDialog(false);
+      setNewMailbox({ email: '', displayName: '' });
+      // Recharger les données
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error creating mailbox:', error);
+      alert('Erreur lors de la création de la boîte email');
+    }
   };
 
   const getStatusColor = (status: string) => {
