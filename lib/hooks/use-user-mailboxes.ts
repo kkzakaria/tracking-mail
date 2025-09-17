@@ -59,12 +59,68 @@ interface UserMailboxesState {
   } | null;
 }
 
+interface MailboxStatsResult {
+  success: boolean;
+  data?: {
+    mailboxes: Array<{
+      id: string;
+      mailboxes: {
+        id: string;
+        email_address: string;
+        display_name: string | null;
+        sync_status: string;
+        sync_enabled: boolean;
+        last_sync_at: string | null;
+        sync_error: string | null;
+      };
+      permission_level: string;
+      stats?: {
+        totalMessages: number;
+        unreadMessages: number;
+        folders: Array<{
+          id: string;
+          displayName: string;
+          childFolderCount: number;
+          unreadItemCount: number;
+          totalItemCount: number;
+        }>;
+      };
+      statsError?: string | null;
+    }>;
+    totalStats: {
+      totalMessages: number;
+      unreadMessages: number;
+      mailboxCount: number;
+    };
+    user: {
+      id: string;
+      email: string;
+      displayName: string;
+    };
+    queryOptions: {
+      startDate: string | null;
+      endDate: string | null;
+      includeChildFolders: boolean;
+      onlyUserFolders: boolean;
+      quickStats: boolean;
+    };
+  };
+  error?: string;
+}
+
 interface UseUserMailboxesResult extends UserMailboxesState {
   refreshMailboxes: (options?: {
     includeMessages?: boolean;
     messageLimit?: number;
     unreadOnly?: boolean;
   }) => Promise<void>;
+  getMailboxStats: (options?: {
+    startDate?: string;
+    endDate?: string;
+    includeChildFolders?: boolean;
+    onlyUserFolders?: boolean;
+    quickStats?: boolean;
+  }) => Promise<MailboxStatsResult>;
   getMailboxMessages: (mailboxId: string, options?: {
     limit?: number;
     unreadOnly?: boolean;
@@ -155,6 +211,60 @@ export function useUserMailboxes(): UseUserMailboxesResult {
   }, []);
 
   /**
+   * Obtenir les statistiques optimisées des boîtes emails assignées
+   */
+  const getMailboxStats = useCallback(async (options?: {
+    startDate?: string;
+    endDate?: string;
+    includeChildFolders?: boolean;
+    onlyUserFolders?: boolean;
+    quickStats?: boolean;
+  }): Promise<MailboxStatsResult> => {
+    try {
+      const params = new URLSearchParams();
+      if (options?.startDate) params.append('startDate', options.startDate);
+      if (options?.endDate) params.append('endDate', options.endDate);
+      if (options?.includeChildFolders) params.append('includeChildFolders', 'true');
+      if (options?.onlyUserFolders) params.append('onlyUserFolders', 'true');
+      if (options?.quickStats) params.append('quickStats', 'true');
+
+      const response = await fetch(`/api/user/mailbox-stats?${params.toString()}`, {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          error: errorData.message || `HTTP ${response.status}`
+        };
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        return {
+          success: true,
+          data: result.data
+        };
+      } else {
+        return {
+          success: false,
+          error: result.message || 'Erreur lors de la récupération des statistiques'
+        };
+      }
+
+    } catch (error) {
+      console.error('Error getting mailbox stats:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  }, []);
+
+  /**
    * Obtenir les messages d'une boîte email spécifique
    */
   const getMailboxMessages = useCallback(async (
@@ -226,6 +336,7 @@ export function useUserMailboxes(): UseUserMailboxesResult {
   return {
     ...state,
     refreshMailboxes,
+    getMailboxStats,
     getMailboxMessages,
     reset
   };

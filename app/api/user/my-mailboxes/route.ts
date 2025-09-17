@@ -113,11 +113,20 @@ export async function GET(request: NextRequest) {
 
     // Si demandé, récupérer les messages pour chaque boîte
     if (includeMessages && mailboxes.length > 0) {
+      console.log('📧 API my-mailboxes: Starting message retrieval for', mailboxes.length, 'mailboxes');
       const adminGraphService = AdminGraphService.getInstance();
 
       // Initialiser le service Graph si nécessaire
+      console.log('📧 API my-mailboxes: Initializing AdminGraphService...');
       const initResult = await adminGraphService.initialize();
+      console.log('📧 API my-mailboxes: AdminGraphService init result:', {
+        success: initResult.success,
+        error: initResult.error?.code,
+        message: initResult.error?.message
+      });
+
       if (!initResult.success) {
+        console.log('📧 API my-mailboxes: Microsoft Graph not configured, returning mailboxes without messages');
         // Ne pas faire échouer la requête si Graph n'est pas configuré
         // Retourner juste les boîtes sans messages
         return NextResponse.json({
@@ -130,16 +139,31 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      console.log('📧 API my-mailboxes: Microsoft Graph configured successfully, proceeding to fetch messages');
+
       // Récupérer les messages pour chaque boîte (en parallèle pour la performance)
       const mailboxPromises = mailboxes.map(async (assignment) => {
+        const emailAddress = assignment.mailboxes.email_address;
+        console.log(`📧 API my-mailboxes: Fetching messages for ${emailAddress} with options:`, {
+          limit: messageLimit,
+          unreadOnly: unreadOnly
+        });
+
         try {
           const messagesResult = await adminGraphService.getMailboxMessages(
-            assignment.mailboxes.email_address,
+            emailAddress,
             {
               limit: messageLimit,
               unreadOnly: unreadOnly
             }
           );
+
+          console.log(`📧 API my-mailboxes: Messages result for ${emailAddress}:`, {
+            success: messagesResult.success,
+            messageCount: messagesResult.success ? messagesResult.data?.length : 0,
+            error: messagesResult.error?.code,
+            errorMessage: messagesResult.error?.message
+          });
 
           return {
             ...assignment,
@@ -147,7 +171,7 @@ export async function GET(request: NextRequest) {
             messagesError: messagesResult.success ? null : messagesResult.error?.message
           };
         } catch (error) {
-          console.error(`Error getting messages for ${assignment.mailboxes.email_address}:`, error);
+          console.error(`📧 API my-mailboxes: Exception getting messages for ${emailAddress}:`, error);
           return {
             ...assignment,
             messages: [],

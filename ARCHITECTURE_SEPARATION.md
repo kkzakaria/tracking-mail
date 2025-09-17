@@ -83,7 +83,6 @@ graph TB
 ## 🌐 **API Routes**
 
 ### **Routes Admin (Vérification admin requise)**
-- `GET/POST/PUT/DELETE /api/admin/graph-config` - Configuration Graph
 - `GET/POST /api/admin/mailboxes` - Gestion des boîtes
 - `GET/PUT/DELETE /api/admin/mailboxes/[id]` - Boîte spécifique
 - `POST /api/admin/mailboxes/[id]/sync` - Synchronisation

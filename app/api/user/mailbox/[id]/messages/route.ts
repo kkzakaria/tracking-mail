@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminGraphService } from '@/lib/services/admin-graph-service';
+// Direct Microsoft Graph implementation - no AdminGraphService dependency
 import { createClient as createSupabaseServerClient } from '@/lib/utils/supabase/server';
 
 /**
@@ -76,40 +76,88 @@ export async function GET(
       );
     }
 
-    // Initialiser et vérifier Microsoft Graph
-    const adminGraphService = AdminGraphService.getInstance();
-    const initResult = await adminGraphService.initialize();
+    // Récupérer les messages directement via Microsoft Graph
+    let messages = [];
 
-    if (!initResult.success) {
-      return NextResponse.json(
-        {
-          error: 'GRAPH_NOT_CONFIGURED',
-          message: 'Microsoft Graph n\'est pas configuré. Contactez votre administrateur.'
-        },
-        { status: 503 }
-      );
-    }
+    try {
+      const { ConfidentialClientApplication } = await import('@azure/msal-node');
 
-    // Récupérer les messages
-    const messagesResult = await adminGraphService.getMailboxMessages(
-      assignment.mailboxes.email_address,
-      {
-        limit: limit,
-        unreadOnly: unreadOnly
+      const config = {
+        clientId: process.env.MICROSOFT_CLIENT_ID!,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+        tenantId: process.env.MICROSOFT_TENANT_ID!
+      };
+
+      const client = new ConfidentialClientApplication({
+        auth: {
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+          authority: `https://login.microsoftonline.com/${config.tenantId}`
+        }
+      });
+
+      // Acquérir un token
+      const response = await client.acquireTokenByClientCredential({
+        scopes: ['https://graph.microsoft.com/.default']
+      });
+
+      if (!response?.accessToken) {
+        return NextResponse.json(
+          {
+            error: 'GRAPH_TOKEN_ERROR',
+            message: 'Impossible d\'obtenir un token d\'accès Microsoft Graph'
+          },
+          { status: 503 }
+        );
       }
-    );
 
-    if (!messagesResult.success) {
+      // Construire la requête avec filtres
+      let graphUrl = `https://graph.microsoft.com/v1.0/users/${assignment.mailboxes.email_address}/messages`;
+      const params = new URLSearchParams({
+        '$select': 'id,subject,from,receivedDateTime,bodyPreview,isRead,importance,conversationId,sender',
+        '$top': Math.min(limit, 100).toString(),
+        '$orderby': 'receivedDateTime desc'
+      });
+
+      if (unreadOnly) {
+        params.append('$filter', 'isRead eq false');
+      }
+
+      graphUrl += '?' + params.toString();
+
+      // Récupérer les messages
+      const messagesResponse = await fetch(graphUrl, {
+        headers: {
+          'Authorization': `Bearer ${response.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!messagesResponse.ok) {
+        const errorText = await messagesResponse.text();
+        console.error('Microsoft Graph API error:', errorText);
+        return NextResponse.json(
+          {
+            error: 'GRAPH_API_ERROR',
+            message: 'Erreur lors de l\'appel à Microsoft Graph API'
+          },
+          { status: 500 }
+        );
+      }
+
+      const messagesData = await messagesResponse.json();
+      messages = messagesData.value || [];
+
+    } catch (graphError) {
+      console.error('Error fetching messages from Microsoft Graph:', graphError);
       return NextResponse.json(
         {
-          error: messagesResult.error?.code || 'FETCH_MESSAGES_ERROR',
-          message: messagesResult.error?.message || 'Erreur lors de la récupération des messages'
+          error: 'GRAPH_FETCH_ERROR',
+          message: 'Erreur lors de la récupération des messages depuis Microsoft Graph'
         },
         { status: 500 }
       );
     }
-
-    const messages = messagesResult.data || [];
 
     // Pagination simple côté client (Microsoft Graph gère sa propre pagination)
     const totalMessages = messages.length;
