@@ -1,0 +1,97 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Next.js",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "args": ["dev"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "presentation": {
+        "group": "Next.js",
+        "order": 1
+      }
+    },
+    {
+      "name": "Debug Next.js (Server)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/.bin/next",
+      "args": ["dev"],
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "runtimeArgs": ["--inspect"],
+      "port": 9229,
+      "presentation": {
+        "group": "Next.js",
+        "order": 2
+      }
+    },
+    {
+      "name": "Debug Current TypeScript File",
+      "type": "node",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/node_modules/**"
+      ],
+      "runtimeArgs": [
+        "--loader",
+        "ts-node/esm"
+      ],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "presentation": {
+        "group": "Debug",
+        "order": 1
+      }
+    },
+    {
+      "name": "Debug Supabase Edge Function",
+      "type": "pwa-node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": [
+        "run",
+        "--allow-all",
+        "--inspect-brk",
+        "${workspaceFolder}/supabase/functions/${input:functionName}/index.ts"
+      ],
+      "attachSimplePort": 9229,
+      "presentation": {
+        "group": "Supabase",
+        "order": 1
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "functionName",
+      "description": "Edge Function Name",
+      "default": "hello-world",
+      "type": "promptString"
+    }
+  ]
+}
