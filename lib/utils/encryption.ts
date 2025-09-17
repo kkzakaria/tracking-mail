@@ -50,7 +50,8 @@ export function decryptData(encryptedObj: EncryptedData): string {
     decrypted += decipher.final('utf8');
 
     return decrypted;
-  } catch (_error) {
+  } catch (error) {
+    console.debug('Decryption failed:', error);
     throw new Error('Failed to decrypt data: Invalid key or corrupted data');
   }
 }
@@ -64,7 +65,8 @@ export function encryptToken(token: string): string {
   try {
     const encrypted = CryptoJS.AES.encrypt(token, ENCRYPTION_KEY).toString();
     return encrypted;
-  } catch (_error) {
+  } catch (error) {
+    console.debug('Encryption failed:', error);
     throw new Error('Failed to encrypt token');
   }
 }
@@ -84,7 +86,8 @@ export function decryptToken(encryptedToken: string): string {
     }
 
     return decrypted;
-  } catch (_error) {
+  } catch (error) {
+    console.debug('Token decryption failed:', error);
     throw new Error('Failed to decrypt token');
   }
 }

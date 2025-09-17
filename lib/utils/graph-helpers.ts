@@ -169,12 +169,15 @@ export function groupUsersByDepartment(users: MicrosoftUser[]): Record<string, M
  * Format email message for display
  */
 export function formatEmailMessage(message: Record<string, unknown>) {
+  const fromObj = message.from as { emailAddress?: { address?: string; name?: string } } | undefined;
+  const receivedDate = message.receivedDateTime;
+
   return {
     id: message.id,
     subject: message.subject || 'No Subject',
-    from: message.from?.emailAddress?.address || 'Unknown Sender',
-    fromName: message.from?.emailAddress?.name || message.from?.emailAddress?.address || 'Unknown',
-    receivedDateTime: new Date(message.receivedDateTime),
+    from: fromObj?.emailAddress?.address || 'Unknown Sender',
+    fromName: fromObj?.emailAddress?.name || fromObj?.emailAddress?.address || 'Unknown',
+    receivedDateTime: receivedDate ? new Date(receivedDate as string) : new Date(),
     bodyPreview: message.bodyPreview || '',
     isRead: message.isRead || false,
     importance: message.importance || 'normal',
@@ -186,14 +189,20 @@ export function formatEmailMessage(message: Record<string, unknown>) {
  * Format calendar event for display
  */
 export function formatCalendarEvent(event: Record<string, unknown>) {
+  const startObj = event.start as { dateTime?: string } | undefined;
+  const endObj = event.end as { dateTime?: string } | undefined;
+  const organizerObj = event.organizer as { emailAddress?: { name?: string; address?: string } } | undefined;
+  const locationObj = event.location as { displayName?: string } | undefined;
+  const attendeesArray = event.attendees as Array<unknown> | undefined;
+
   return {
     id: event.id,
     subject: event.subject || 'No Subject',
-    start: new Date(event.start.dateTime),
-    end: new Date(event.end.dateTime),
-    organizer: event.organizer?.emailAddress?.name || event.organizer?.emailAddress?.address || 'Unknown',
-    location: event.location?.displayName || '',
-    attendeesCount: event.attendees?.length || 0,
+    start: startObj?.dateTime ? new Date(startObj.dateTime) : new Date(),
+    end: endObj?.dateTime ? new Date(endObj.dateTime) : new Date(),
+    organizer: organizerObj?.emailAddress?.name || organizerObj?.emailAddress?.address || 'Unknown',
+    location: locationObj?.displayName || '',
+    attendeesCount: attendeesArray?.length || 0,
     isAllDay: event.isAllDay || false,
     importance: event.importance || 'normal',
     showAs: event.showAs || 'busy'

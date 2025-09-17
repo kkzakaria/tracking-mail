@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const _userAgent = request.headers.get('user-agent') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    // userAgent is collected for security logging and would be used in production rate limiting
+    console.debug('Auth request from:', { ipAddress, userAgent });
 
     // Check rate limiting
     const authService = AuthService.getInstance();
@@ -112,7 +114,9 @@ export async function POST(request: NextRequest) {
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const _userAgent = request.headers.get('user-agent') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+    // userAgent is collected for security logging and would be used in production rate limiting
+    console.debug('OAuth request from:', { ipAddress, userAgent });
 
     // Validate state parameter against cookie
     const storedState = request.cookies.get('oauth_state')?.value;
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Exchange code for tokens
     const authService = AuthService.getInstance();
-    const result = await authService.exchangeCodeForTokens(code, state, ipAddress, _userAgent);
+    const result = await authService.exchangeCodeForTokens(code, state, ipAddress, userAgent);
 
     if (!result.success) {
       return NextResponse.json(

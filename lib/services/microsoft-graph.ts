@@ -4,7 +4,9 @@ import {
   MicrosoftUser,
   GraphRequestOptions,
   RateLimitInfo,
-  GraphApiUser
+  GraphApiUser,
+  GraphApiError,
+  UnknownGraphError
 } from '../types/microsoft-graph';
 import { MICROSOFT_GRAPH_CONFIG, RATE_LIMIT_CONFIG } from '../config/microsoft-graph';
 
@@ -270,16 +272,28 @@ export class MicrosoftGraphService {
    * Handle Graph API errors
    */
   private handleGraphError(error: unknown): Error {
-    if (error?.code) {
-      const graphError: GraphApiError = error;
-      return new Error(`Microsoft Graph API Error: ${graphError.code} - ${graphError.message}`);
+    // Check if it's a typed GraphApiError
+    if (error && typeof error === 'object' && 'error' in error) {
+      const graphError = error as GraphApiError;
+      return new Error(`Microsoft Graph API Error: ${graphError.error.code} - ${graphError.error.message}`);
     }
 
-    if (error?.response?.status) {
-      return new Error(`Microsoft Graph API Error: HTTP ${error.response.status}`);
+    // Check if it's an UnknownGraphError
+    const unknownError = error as UnknownGraphError;
+    if (unknownError?.code) {
+      return new Error(`Microsoft Graph API Error: ${unknownError.code} - ${unknownError.message || 'Unknown error'}`);
     }
 
-    return new Error(`Microsoft Graph API Error: ${error.message || 'Unknown error'}`);
+    if (unknownError?.response?.status) {
+      return new Error(`Microsoft Graph API Error: HTTP ${unknownError.response.status}`);
+    }
+
+    // Handle generic error objects
+    if (error instanceof Error) {
+      return new Error(`Microsoft Graph API Error: ${error.message}`);
+    }
+
+    return new Error(`Microsoft Graph API Error: ${String(error) || 'Unknown error'}`);
   }
 
   /**
@@ -287,10 +301,12 @@ export class MicrosoftGraphService {
    */
   private isAuthenticationError(error: unknown): boolean {
     const authCodes = ['InvalidAuthenticationToken', 'AuthenticationFailed', 'Forbidden', 'Unauthorized'];
+    const unknownError = error as UnknownGraphError;
+
     return authCodes.some(code =>
-      error?.code === code ||
-      error?.response?.status === 401 ||
-      error?.response?.status === 403
+      unknownError?.code === code ||
+      unknownError?.response?.status === 401 ||
+      unknownError?.response?.status === 403
     );
   }
 
@@ -298,8 +314,9 @@ export class MicrosoftGraphService {
    * Check if error is rate limiting related
    */
   private isRateLimitError(error: unknown): boolean {
-    return error?.code === 'TooManyRequests' ||
-           error?.response?.status === 429;
+    const unknownError = error as UnknownGraphError;
+    return unknownError?.code === 'TooManyRequests' ||
+           unknownError?.response?.status === 429;
   }
 
   /**

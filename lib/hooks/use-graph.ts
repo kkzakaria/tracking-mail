@@ -14,8 +14,8 @@ interface GraphState<T> {
   error?: string;
 }
 
-interface GraphActions<T> {
-  execute: (...args: unknown[]) => Promise<T | undefined>;
+interface GraphActions<T, TArgs extends unknown[] = unknown[]> {
+  execute: (...args: TArgs) => Promise<T | undefined>;
   refresh: () => Promise<T | undefined>;
   reset: () => void;
 }
@@ -23,17 +23,17 @@ interface GraphActions<T> {
 /**
  * Generic hook for Microsoft Graph API calls
  */
-export function useGraph<T>(
-  apiCall: (...args: unknown[]) => Promise<Response>,
+export function useGraph<T, TArgs extends unknown[] = unknown[]>(
+  apiCall: (...args: TArgs) => Promise<Response>,
   options: UseGraphOptions = {}
-): GraphState<T> & GraphActions<T> {
+): GraphState<T> & GraphActions<T, TArgs> {
   const { retries = 3 } = options;
   const [state, setState] = useState<GraphState<T>>({
     loading: false
   });
-  const [lastArgs, setLastArgs] = useState<unknown[]>([]);
+  const [lastArgs, setLastArgs] = useState<TArgs>(() => [] as unknown as TArgs);
 
-  const execute = useCallback(async (...args: unknown[]): Promise<T | undefined> => {
+  const execute = useCallback(async (...args: TArgs): Promise<T | undefined> => {
     setState(prev => ({ ...prev, loading: true, error: undefined }));
     setLastArgs(args);
 
@@ -98,7 +98,7 @@ export function useGraph<T>(
 
   const reset = useCallback(() => {
     setState({ loading: false });
-    setLastArgs([]);
+    setLastArgs([] as unknown as TArgs);
   }, []);
 
   return {
@@ -128,7 +128,7 @@ export function useUsers(options: UseGraphOptions = {}) {
     });
   }, []);
 
-  return useGraph<{ users: MicrosoftUser[]; total: number; hasMore: boolean }>(apiCall, options);
+  return useGraph<{ users: MicrosoftUser[]; total: number; hasMore: boolean }, [searchParams?: { search?: string; limit?: number; filter?: string; }]>(apiCall, options);
 }
 
 /**
@@ -141,7 +141,7 @@ export function useUser(userId?: string, options: UseGraphOptions = {}) {
     });
   }, []);
 
-  const result = useGraph<{ user: MicrosoftUser }>(apiCall, options);
+  const result = useGraph<{ user: MicrosoftUser }, [id: string]>(apiCall, options);
 
   const executeWithId = useCallback(async () => {
     if (userId) {
@@ -177,7 +177,7 @@ export function useUserMail(userId?: string, options: UseGraphOptions = {}) {
     total: number;
     hasMore: boolean;
     unreadOnly: boolean;
-  }>(apiCall, options);
+  }, [id: string, mailParams?: { limit?: number; unreadOnly?: boolean; }]>(apiCall, options);
 
   const executeWithParams = useCallback(async (mailParams?: {
     limit?: number;
@@ -215,7 +215,7 @@ export function useSendMail() {
     });
   }, []);
 
-  return useGraph<{ success: boolean; messageId: string }>(apiCall);
+  return useGraph<{ success: boolean; messageId: string }, [userId: string, emailData: { subject: string; body: string; toRecipients: string[]; ccRecipients?: string[]; importance?: 'low' | 'normal' | 'high'; }]>(apiCall);
 }
 
 /**
@@ -245,7 +245,7 @@ export function useUserCalendar(userId?: string, options: UseGraphOptions = {}) 
       startDate?: string;
       endDate?: string;
     };
-  }>(apiCall, options);
+  }, [id: string, calendarParams?: { limit?: number; startDate?: string; endDate?: string; }]>(apiCall, options);
 
   const executeWithParams = useCallback(async (calendarParams?: {
     limit?: number;

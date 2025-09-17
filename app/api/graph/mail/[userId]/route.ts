@@ -205,7 +205,7 @@ export async function POST(
 
     // Add CC recipients if provided
     if (ccRecipients && Array.isArray(ccRecipients) && ccRecipients.length > 0) {
-      message.ccRecipients = ccRecipients.map((email: string) => ({
+      (message as { ccRecipients?: Array<{ emailAddress: { address: string } }> }).ccRecipients = ccRecipients.map((email: string) => ({
         emailAddress: {
           address: email
         }
@@ -223,7 +223,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: 'Email sent successfully',
-      messageId: result.id || 'unknown'
+      id: (result as { id?: string })?.id || 'unknown'
     });
 
   } catch (error) {

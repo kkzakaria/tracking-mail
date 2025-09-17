@@ -109,6 +109,23 @@ export interface GraphApiMessage {
   receivedDateTime?: string;
   bodyPreview?: string;
   isRead?: boolean;
+  importance?: 'low' | 'normal' | 'high';
+  toRecipients?: Array<{
+    emailAddress: {
+      name?: string;
+      address?: string;
+    };
+  }>;
+  ccRecipients?: Array<{
+    emailAddress: {
+      name?: string;
+      address?: string;
+    };
+  }>;
+  body?: {
+    contentType: string;
+    content: string;
+  };
 }
 
 export interface GraphApiEvent {
@@ -137,6 +154,13 @@ export interface GraphApiEvent {
       response: string;
     };
   }>;
+  body?: {
+    contentType: string;
+    content: string;
+  };
+  location?: {
+    displayName?: string;
+  };
 }
 
 export interface GraphApiError {
@@ -150,6 +174,23 @@ export interface GraphApiError {
       'request-id': string;
     };
   };
+}
+
+// Helper type for unknown errors that need to be typed
+export interface UnknownGraphError {
+  code?: string;
+  message?: string;
+  response?: {
+    status?: number;
+    data?: unknown;
+  };
+}
+
+// Type for send email response
+export interface SendEmailResponse {
+  success: boolean;
+  id?: string;
+  error?: string;
 }
 
 export interface ApiError {

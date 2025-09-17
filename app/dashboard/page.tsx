@@ -273,7 +273,7 @@ export default function Dashboard() {
                                 De: {message.from?.emailAddress?.name || message.from?.emailAddress?.address}
                               </p>
                               <p className="text-sm text-gray-500">
-                                {formatDateTime(new Date(message.receivedDateTime))}
+                                {message.receivedDateTime ? formatDateTime(new Date(message.receivedDateTime)) : 'Date inconnue'}
                               </p>
                               {message.bodyPreview && (
                                 <p className="text-sm text-gray-700 mt-2 line-clamp-2">

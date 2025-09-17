@@ -51,9 +51,10 @@ export function createApiError(
   response: Response,
   data?: Record<string, unknown>
 ): ApiResponse {
+  const message = typeof data?.message === 'string' ? data.message : response.statusText || 'Unknown error';
   const error = {
     code: `HTTP_${response.status}`,
-    message: data?.message || response.statusText || 'Unknown error',
+    message,
     details: data
   };
 
@@ -126,7 +127,7 @@ export async function apiRequest<T = unknown>(
         errorData = { message: response.statusText };
       }
 
-      return createApiError(response, errorData);
+      return createApiError(response, errorData) as ApiResponse<T>;
 
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
@@ -335,7 +336,7 @@ export function createApiClient<T extends Record<string, unknown>>(
   baseEndpoint: string
 ) {
   return {
-    list: (params?: Record<string, unknown>) =>
+    list: (params?: Record<string, string | number | boolean>) =>
       apiGet<PaginatedResponse<T>>(`${baseEndpoint}`, params),
 
     get: (id: string) =>

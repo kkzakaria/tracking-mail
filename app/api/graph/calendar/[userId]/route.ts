@@ -72,8 +72,13 @@ export async function GET(
     let filteredEvents = events;
     if (startDate || endDate) {
       filteredEvents = events.filter((event: Record<string, unknown>) => {
-        const eventStart = new Date(event.start.dateTime);
-        const eventEnd = new Date(event.end.dateTime);
+        const startObj = event.start as { dateTime?: string } | undefined;
+        const endObj = event.end as { dateTime?: string } | undefined;
+
+        if (!startObj?.dateTime || !endObj?.dateTime) return false;
+
+        const eventStart = new Date(startObj.dateTime);
+        const eventEnd = new Date(endObj.dateTime);
 
         if (startDate && eventEnd < new Date(startDate)) {
           return false;

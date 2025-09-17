@@ -89,8 +89,7 @@ export async function DELETE(request: NextRequest) {
 
     if (sessionUserId) {
       // Get client information for security logging
-      const ipAddress = request.ip ||
-                       request.headers.get('x-forwarded-for')?.split(',')[0] ||
+      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
                        request.headers.get('x-real-ip') ||
                        'unknown';
 
@@ -147,8 +146,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get client information
-    const ipAddress = request.ip ||
-                     request.headers.get('x-forwarded-for')?.split(',')[0] ||
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
                      request.headers.get('x-real-ip') ||
                      'unknown';
 

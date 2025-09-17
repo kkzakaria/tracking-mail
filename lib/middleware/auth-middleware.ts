@@ -121,16 +121,19 @@ export async function withRateLimit(
 ): Promise<NextResponse> {
   const {
     windowMs = 60000, // 1 minute
-    keyGenerator = (req) => req.ip || 'unknown'
+    keyGenerator = (req) => req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip') || 'unknown'
   } = options;
 
   try {
-    const _key = keyGenerator(request);
+    const key = keyGenerator(request);
 
     // In a production environment, you would use Redis or another store
     // For now, we'll use a simple in-memory store (not recommended for production)
     const now = Date.now();
-    const _windowStart = now - windowMs;
+    const windowStart = now - windowMs;
+
+    // Note: key and windowStart would be used in production rate limiting implementation
+    console.debug('Rate limiting check:', { key, windowStart });
 
     // This would be replaced with proper rate limiting storage
     // For demonstration purposes only
@@ -205,7 +208,7 @@ export async function withLogging(
   const method = request.method;
   const url = request.url;
   const userAgent = request.headers.get('user-agent') || 'unknown';
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown';
 
   try {
     const response = await handler(request);
@@ -229,7 +232,7 @@ export function compose(
   ...middlewares: Array<(req: NextRequest, next: (req: NextRequest) => Promise<NextResponse>) => Promise<NextResponse>>
 ) {
   return (request: NextRequest, handler: (req: NextRequest) => Promise<NextResponse>) => {
-    return middlewares.reduceRight(
+    return middlewares.reduceRight<(req: NextRequest) => Promise<NextResponse>>(
       (next, middleware) => (req: NextRequest) => middleware(req, next),
       handler
     )(request);

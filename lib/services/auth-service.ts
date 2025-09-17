@@ -452,7 +452,7 @@ export class AuthService {
   private validateState(state: string): boolean {
     // Implement your state validation logic
     // This could involve checking against stored states, CSRF tokens, etc.
-    return state && state.length >= 16;
+    return Boolean(state && state.length >= 16);
   }
 
   /**
