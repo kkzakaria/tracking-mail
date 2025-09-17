@@ -1,5 +1,5 @@
-import crypto from 'crypto';
-import CryptoJS from 'crypto-js';
+import * as crypto from 'crypto';
+import * as CryptoJS from 'crypto-js';
 
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '';
 const ALGORITHM = 'aes-256-gcm';

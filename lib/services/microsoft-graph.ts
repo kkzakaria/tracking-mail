@@ -113,11 +113,11 @@ export class MicrosoftGraphService {
       const client = await this.createGraphClient(accessToken);
 
       let users: MicrosoftUser[] = [];
-      let nextLink = '/users';
+      let nextLink: string | null = '/users';
 
       while (nextLink) {
         const response = await this.executeWithRetry(
-          () => client.api(nextLink)
+          () => client.api(nextLink!)
             .select('id,displayName,mail,userPrincipalName,givenName,surname,jobTitle,department')
             .top(100)
             .get(),
