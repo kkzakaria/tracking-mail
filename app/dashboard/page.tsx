@@ -31,24 +31,51 @@ import {
 } from 'lucide-react';
 
 export default function UserDashboard() {
-  const { user, signOut, isAuthenticated } = useSupabaseAuth();
-  const { mailboxes, loading, error, refreshMailboxes } = useUserMailboxes();
+  const { user, signOut, isAuthenticated, loading: authLoading } = useSupabaseAuth();
+  const { mailboxes, loading: mailboxLoading, error, refreshMailboxes } = useUserMailboxes();
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  // Redirect if not authenticated
+  console.log('🏠 Dashboard: Render state', {
+    user: !!user,
+    userId: user?.id,
+    isAuthenticated,
+    authLoading,
+    mailboxLoading,
+    mailboxCount: mailboxes.length,
+    error
+  });
+
+  // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
-    if (!isAuthenticated && !loading) {
+    console.log('🏠 Dashboard: Auth effect', {
+      authLoading,
+      isAuthenticated,
+      user: !!user,
+      userId: user?.id
+    });
+
+    if (!authLoading && !isAuthenticated) {
+      console.log('🏠 Dashboard: Redirecting to login - not authenticated');
       router.push('/auth/login');
+    } else if (!authLoading && isAuthenticated) {
+      console.log('🏠 Dashboard: User is authenticated, staying on dashboard');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, authLoading, router, user]);
 
   // Load mailboxes on mount
   useEffect(() => {
-    if (isAuthenticated) {
+    console.log('🏠 Dashboard: Mailbox effect', {
+      isAuthenticated,
+      user: !!user,
+      mailboxCount: mailboxes.length
+    });
+
+    if (isAuthenticated && user) {
+      console.log('🏠 Dashboard: Loading mailboxes for authenticated user');
       refreshMailboxes({ includeMessages: true, messageLimit: 5, unreadOnly: false });
     }
-  }, [isAuthenticated, refreshMailboxes]);
+  }, [isAuthenticated, user, refreshMailboxes]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -96,12 +123,25 @@ export default function UserDashboard() {
     return colors[level as keyof typeof colors] || colors.read;
   };
 
-  if (!isAuthenticated) {
+  if (authLoading) {
+    console.log('🏠 Dashboard: Rendering loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
           <p className="text-slate-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    console.log('🏠 Dashboard: Not authenticated, showing loading while redirecting');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
+          <p className="text-slate-600">Redirection...</p>
         </div>
       </div>
     );
@@ -209,7 +249,7 @@ export default function UserDashboard() {
         )}
 
         {/* Loading State */}
-        {loading && mailboxes.length === 0 && (
+        {mailboxLoading && mailboxes.length === 0 && (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <Card key={i} className="animate-pulse">
@@ -339,7 +379,7 @@ export default function UserDashboard() {
         )}
 
         {/* Empty State */}
-        {!loading && mailboxes.length === 0 && !error && (
+        {!mailboxLoading && mailboxes.length === 0 && !error && (
           <Card className="text-center py-12">
             <CardContent>
               <Inbox className="h-12 w-12 text-slate-400 mx-auto mb-4" />

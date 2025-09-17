@@ -28,12 +28,15 @@ export function LoginForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = await signIn(email, password);
+    await signIn(email, password);
 
-    // Redirect on successful login
-    if (result && !error) {
-      router.push('/dashboard');
-    }
+    // Redirect on successful login (signIn doesn't return a value, check error state)
+    // Wait a bit for the state to update
+    setTimeout(() => {
+      if (!error) {
+        router.push('/dashboard');
+      }
+    }, 100);
   };
 
   return (

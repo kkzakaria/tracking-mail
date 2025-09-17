@@ -11,14 +11,24 @@ import { createClient as createSupabaseServerClient } from '@/lib/utils/supabase
  * Vérifier que l'utilisateur est authentifié
  */
 async function verifyAuth(request: NextRequest) {
+  console.log('🔒 API verifyAuth: Starting verification');
   const supabase = await createSupabaseServerClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log('🔒 API verifyAuth: getUser result', {
+    user: !!user,
+    userId: user?.id,
+    email: user?.email,
+    error: userError?.message
+  });
+
   if (userError || !user) {
+    console.log('🔒 API verifyAuth: Auth failed', userError);
     return NextResponse.json({ error: 'UNAUTHORIZED', message: 'Authentification requise' }, { status: 401 });
   }
 
   // Vérifier que l'utilisateur a un profil actif
+  console.log('🔒 API verifyAuth: Checking user profile for', user.id);
   const { data: profile, error: profileError } = await supabase
     .from('user_profiles')
     .select('*')
@@ -26,10 +36,19 @@ async function verifyAuth(request: NextRequest) {
     .eq('is_active', true)
     .single();
 
+  console.log('🔒 API verifyAuth: Profile check result', {
+    profile: !!profile,
+    profileId: profile?.id,
+    isActive: profile?.is_active,
+    error: profileError?.message
+  });
+
   if (profileError || !profile) {
+    console.log('🔒 API verifyAuth: Profile not found or inactive');
     return NextResponse.json({ error: 'PROFILE_NOT_FOUND', message: 'Profil utilisateur non trouvé ou inactif' }, { status: 403 });
   }
 
+  console.log('🔒 API verifyAuth: Verification successful');
   return { userId: user.id, profile };
 }
 
@@ -38,10 +57,15 @@ async function verifyAuth(request: NextRequest) {
  * Obtenir les boîtes emails assignées à l'utilisateur connecté
  */
 export async function GET(request: NextRequest) {
+  console.log('📧 API my-mailboxes: GET request received');
   const authCheck = await verifyAuth(request);
-  if (authCheck instanceof NextResponse) return authCheck;
+  if (authCheck instanceof NextResponse) {
+    console.log('📧 API my-mailboxes: Auth check failed, returning response');
+    return authCheck;
+  }
 
   const { userId, profile } = authCheck;
+  console.log('📧 API my-mailboxes: Auth check passed', { userId, profileEmail: profile.email });
 
   try {
     const { searchParams } = new URL(request.url);
