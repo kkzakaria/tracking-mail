@@ -23,8 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get client IP and user agent for security logging
-    const ipAddress = request.ip ||
-                     request.headers.get('x-forwarded-for')?.split(',')[0] ||
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] ||
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
@@ -109,8 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get client information
-    const ipAddress = request.ip ||
-                     request.headers.get('x-forwarded-for')?.split(',')[0] ||
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] ||
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
@@ -130,7 +128,7 @@ export async function POST(request: NextRequest) {
 
     // Exchange code for tokens
     const authService = AuthService.getInstance();
-    const result = await authService.exchangeCodeForTokens(code, state, ipAddress, userAgent);
+    const result = await authService.exchangeCodeForTokens(code, state, ipAddress, _userAgent);
 
     if (!result.success) {
       return NextResponse.json(
@@ -199,12 +197,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get client information
-    const ipAddress = request.ip ||
-                     request.headers.get('x-forwarded-for')?.split(',')[0] ||
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0] ||
                      request.headers.get('x-real-ip') ||
                      'unknown';
 
-    const _userAgent = request.headers.get('user-agent') || 'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
 
     // Logout user
     const authService = AuthService.getInstance();
