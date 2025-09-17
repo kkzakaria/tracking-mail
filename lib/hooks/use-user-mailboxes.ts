@@ -239,12 +239,10 @@ export function useSupabaseUser() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('🔍 useSupabaseUser: Initializing');
     const supabase = createClient();
 
     // Obtenir l'utilisateur actuel
     supabase.auth.getUser().then(({ data: { user }, error }) => {
-      console.log('🔍 useSupabaseUser: getUser result', { user: !!user, userId: user?.id, error });
       setUser(user);
       setLoading(false);
     });
@@ -252,27 +250,15 @@ export function useSupabaseUser() {
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔍 useSupabaseUser: Auth state changed', {
-          event,
-          user: !!session?.user,
-          userId: session?.user?.id
-        });
         setUser(session?.user || null);
         setLoading(false);
       }
     );
 
     return () => {
-      console.log('🔍 useSupabaseUser: Cleanup');
       subscription.unsubscribe();
     };
   }, []);
-
-  console.log('🔍 useSupabaseUser: Current state', {
-    user: !!user,
-    userId: user?.id,
-    loading
-  });
 
   return { user, loading };
 }
@@ -286,7 +272,6 @@ export function useSupabaseAuth() {
   const { user, loading: userLoading } = useSupabaseUser();
 
   const signIn = useCallback(async (email: string, password: string) => {
-    console.log('🔐 useSupabaseAuth: Starting signIn', { email });
     setActionLoading(true);
     setError(null);
 
@@ -298,12 +283,9 @@ export function useSupabaseAuth() {
       });
 
       if (error) {
-        console.log('🔐 useSupabaseAuth: SignIn error', error);
         throw error;
       }
-      console.log('🔐 useSupabaseAuth: SignIn success');
     } catch (error) {
-      console.log('🔐 useSupabaseAuth: SignIn catch error', error);
       setError(error instanceof Error ? error.message : 'Erreur de connexion');
     } finally {
       setActionLoading(false);
@@ -314,7 +296,6 @@ export function useSupabaseAuth() {
     full_name?: string;
     display_name?: string;
   }) => {
-    console.log('🔐 useSupabaseAuth: Starting signUp', { email });
     setActionLoading(true);
     setError(null);
 
@@ -329,9 +310,7 @@ export function useSupabaseAuth() {
       });
 
       if (error) throw error;
-      console.log('🔐 useSupabaseAuth: SignUp success');
     } catch (error) {
-      console.log('🔐 useSupabaseAuth: SignUp error', error);
       setError(error instanceof Error ? error.message : 'Erreur d\'inscription');
     } finally {
       setActionLoading(false);
@@ -339,7 +318,6 @@ export function useSupabaseAuth() {
   }, []);
 
   const signOut = useCallback(async () => {
-    console.log('🔐 useSupabaseAuth: Starting signOut');
     setActionLoading(true);
     setError(null);
 
@@ -348,9 +326,7 @@ export function useSupabaseAuth() {
       const { error } = await supabase.auth.signOut();
 
       if (error) throw error;
-      console.log('🔐 useSupabaseAuth: SignOut success');
     } catch (error) {
-      console.log('🔐 useSupabaseAuth: SignOut error', error);
       setError(error instanceof Error ? error.message : 'Erreur de déconnexion');
     } finally {
       setActionLoading(false);
@@ -359,16 +335,6 @@ export function useSupabaseAuth() {
 
   const isAuthenticated = !!user;
   const totalLoading = userLoading || actionLoading;
-
-  console.log('🔐 useSupabaseAuth: Current state', {
-    user: !!user,
-    userId: user?.id,
-    userLoading,
-    actionLoading,
-    totalLoading,
-    isAuthenticated,
-    error
-  });
 
   return {
     user,

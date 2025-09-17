@@ -78,9 +78,9 @@ interface MailboxData {
 }
 
 export default function AdminDashboard() {
-  const { user, signOut, isAuthenticated } = useSupabaseAuth();
+  const { user, signOut, isAuthenticated, loading: authLoading } = useSupabaseAuth();
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [stats, setStats] = useState<AdminStats>({
     totalUsers: 0,
     totalMailboxes: 0,
@@ -95,27 +95,49 @@ export default function AdminDashboard() {
   const [newMailbox, setNewMailbox] = useState({ email: '', displayName: '' });
   const router = useRouter();
 
+
   // Vérifier si l'utilisateur est admin
   useEffect(() => {
-    if (!isAuthenticated && !loading) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/auth/login');
       return;
     }
 
-    if (isAuthenticated && user) {
-      // Vérifier le rôle admin - dans un vrai système, cela viendrait de l'API
-      const userRole = user.user_metadata?.role || 'user';
-      if (userRole === 'admin') {
+    if (!authLoading && isAuthenticated && user) {
+      checkAdminRole();
+    }
+  }, [isAuthenticated, authLoading, user, router]);
+
+  // Fonction pour vérifier le rôle admin via l'API
+  const checkAdminRole = async () => {
+    try {
+      const response = await fetch('/api/admin/check-role', {
+        method: 'GET',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.isAdmin) {
         setIsAdmin(true);
         loadDashboardData();
       } else {
         router.push('/dashboard'); // Rediriger les non-admins vers le dashboard utilisateur
       }
+    } catch (error) {
+      console.error('Error checking admin role:', error);
+      // En cas d'erreur, rediriger vers le dashboard utilisateur par sécurité
+      router.push('/dashboard');
     }
-  }, [isAuthenticated, loading, user, router]);
+  };
 
   const loadDashboardData = async () => {
-    setLoading(true);
+    setDataLoading(true);
     try {
       // Simuler le chargement des données - dans un vrai système, ces appels seraient vers l'API
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -176,7 +198,7 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
-      setLoading(false);
+      setDataLoading(false);
     }
   };
 
@@ -218,7 +240,30 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!isAuthenticated || !isAdmin) {
+  if (authLoading) {
+    console.log('👑 Admin: Rendering auth loading state');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
+          <p className="text-slate-600">Vérification de l'authentification...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
+          <p className="text-slate-600">Redirection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -229,7 +274,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (loading) {
+  if (dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

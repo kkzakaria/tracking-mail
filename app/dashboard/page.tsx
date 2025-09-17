@@ -36,43 +36,17 @@ export default function UserDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  console.log('🏠 Dashboard: Render state', {
-    user: !!user,
-    userId: user?.id,
-    isAuthenticated,
-    authLoading,
-    mailboxLoading,
-    mailboxCount: mailboxes.length,
-    error
-  });
 
   // Redirect if not authenticated (only after loading is complete)
   useEffect(() => {
-    console.log('🏠 Dashboard: Auth effect', {
-      authLoading,
-      isAuthenticated,
-      user: !!user,
-      userId: user?.id
-    });
-
     if (!authLoading && !isAuthenticated) {
-      console.log('🏠 Dashboard: Redirecting to login - not authenticated');
       router.push('/auth/login');
-    } else if (!authLoading && isAuthenticated) {
-      console.log('🏠 Dashboard: User is authenticated, staying on dashboard');
     }
-  }, [isAuthenticated, authLoading, router, user]);
+  }, [isAuthenticated, authLoading, router]);
 
   // Load mailboxes on mount
   useEffect(() => {
-    console.log('🏠 Dashboard: Mailbox effect', {
-      isAuthenticated,
-      user: !!user,
-      mailboxCount: mailboxes.length
-    });
-
     if (isAuthenticated && user) {
-      console.log('🏠 Dashboard: Loading mailboxes for authenticated user');
       refreshMailboxes({ includeMessages: true, messageLimit: 5, unreadOnly: false });
     }
   }, [isAuthenticated, user, refreshMailboxes]);
@@ -124,7 +98,6 @@ export default function UserDashboard() {
   };
 
   if (authLoading) {
-    console.log('🏠 Dashboard: Rendering loading state');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -136,7 +109,6 @@ export default function UserDashboard() {
   }
 
   if (!isAuthenticated) {
-    console.log('🏠 Dashboard: Not authenticated, showing loading while redirecting');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
