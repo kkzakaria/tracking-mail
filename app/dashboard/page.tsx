@@ -1,313 +1,362 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/hooks/use-auth';
-import { useUsers, useUserMail, useSendMail } from '@/lib/hooks/use-graph';
-import { formatUserDisplayName, getUserPrimaryEmail, formatDateTime } from '@/lib/utils/graph-helpers';
+import { useRouter } from 'next/navigation';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useSupabaseAuth, useUserMailboxes } from '@/lib/hooks/use-user-mailboxes';
+import {
+  Mail,
+  Inbox,
+  RefreshCw,
+  User,
+  LogOut,
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  MoreHorizontal,
+  Eye,
+  Settings,
+} from 'lucide-react';
 
-export default function Dashboard() {
-  const { authenticated, user, loading: authLoading, login, logout } = useAuth();
-  const { data: usersData, loading: usersLoading, execute: fetchUsers } = useUsers();
-  const { data: mailData, loading: mailLoading, execute: fetchMail } = useUserMail();
-  const { execute: sendMail, loading: sendingMail } = useSendMail();
+export default function UserDashboard() {
+  const { user, signOut, isAuthenticated } = useSupabaseAuth();
+  const { mailboxes, loading, error, refreshMailboxes } = useUserMailboxes();
+  const [refreshing, setRefreshing] = useState(false);
+  const router = useRouter();
 
-  const [selectedUserId, setSelectedUserId] = useState<string>('');
-  const [emailForm, setEmailForm] = useState({
-    subject: '',
-    body: '',
-    toRecipients: '',
-    ccRecipients: ''
-  });
-
+  // Redirect if not authenticated
   useEffect(() => {
-    if (authenticated) {
-      fetchUsers({ limit: 20 });
+    if (!isAuthenticated && !loading) {
+      router.push('/auth/login');
     }
-  }, [authenticated, fetchUsers]);
+  }, [isAuthenticated, loading, router]);
 
-  const handleUserSelect = async (userId: string) => {
-    setSelectedUserId(userId);
-    await fetchMail({ limit: 10, unreadOnly: false });
+  // Load mailboxes on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshMailboxes({ includeMessages: true, messageLimit: 5, unreadOnly: false });
+    }
+  }, [isAuthenticated, refreshMailboxes]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshMailboxes({ includeMessages: true, messageLimit: 5 });
+    setRefreshing(false);
   };
 
-  const handleSendEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUserId) return;
+  const handleSignOut = async () => {
+    await signOut();
+    router.push('/auth/login');
+  };
 
-    const toEmails = emailForm.toRecipients.split(',').map(email => email.trim()).filter(Boolean);
-    const ccEmails = emailForm.ccRecipients.split(',').map(email => email.trim()).filter(Boolean);
-
-    const result = await sendMail(selectedUserId, {
-      subject: emailForm.subject,
-      body: emailForm.body,
-      toRecipients: toEmails,
-      ccRecipients: ccEmails.length > 0 ? ccEmails : undefined,
-      importance: 'normal'
-    });
-
-    if (result) {
-      alert('Email envoyé avec succès!');
-      setEmailForm({ subject: '', body: '', toRecipients: '', ccRecipients: '' });
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'syncing':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
+      case 'error':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
     }
   };
 
-  if (authLoading) {
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle2 className="h-3 w-3" />;
+      case 'syncing':
+        return <RefreshCw className="h-3 w-3 animate-spin" />;
+      case 'error':
+        return <AlertCircle className="h-3 w-3" />;
+      default:
+        return <Clock className="h-3 w-3" />;
+    }
+  };
+
+  const getPermissionBadge = (level: string) => {
+    const colors = {
+      read: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+      read_write: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+      admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    };
+    return colors[level as keyof typeof colors] || colors.read;
+  };
+
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Vérification de l&apos;authentification...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Tracking Mail Dashboard
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Connectez-vous avec votre compte Microsoft pour accéder au dashboard
-            </p>
-          </div>
-          <div>
-            <button
-              onClick={login}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Se connecter avec Microsoft
-            </button>
-          </div>
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-600" />
+          <p className="text-slate-600">Chargement...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-white shadow">
+      <header className="bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <h1 className="text-3xl font-bold text-gray-900">
-              Tracking Mail Dashboard
-            </h1>
+          <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.displayName}</p>
-                <p className="text-sm text-gray-500">{user?.mail}</p>
-              </div>
-              <button
-                onClick={logout}
-                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700"
+              <Mail className="h-8 w-8 text-blue-600" />
+              <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                Tracking Mail
+              </h1>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="hidden sm:flex"
               >
-                Se déconnecter
-              </button>
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Actualiser
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-blue-600 text-white">
+                        {user?.email?.[0]?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.user_metadata?.display_name || user?.email}
+                      </p>
+                      <p className="text-xs leading-none text-slate-600">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Paramètres</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Se déconnecter</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Liste des utilisateurs */}
-          <div className="lg:col-span-1">
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  Utilisateurs
-                </h3>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            Bonjour, {user?.user_metadata?.display_name || user?.email?.split('@')[0]} 👋
+          </h2>
+          <p className="mt-1 text-slate-600 dark:text-slate-400">
+            Voici vos boîtes emails assignées et leurs derniers messages.
+          </p>
+        </div>
 
-                {usersLoading ? (
-                  <div className="space-y-3">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+        {/* Error State */}
+        {error && (
+          <Card className="mb-6 border-red-200 dark:border-red-800">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+                <AlertCircle className="h-5 w-5" />
+                <p className="font-medium">Erreur lors du chargement</p>
+              </div>
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                className="mt-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Loading State */}
+        {loading && mailboxes.length === 0 && (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="pt-6">
+                  <div className="h-4 bg-slate-200 rounded w-1/4 mb-4"></div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-slate-200 rounded w-3/4"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Mailboxes Grid */}
+        {mailboxes.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {mailboxes.map((assignment) => {
+              const mailbox = assignment.mailboxes;
+              return (
+                <Card key={assignment.id} className="hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                          <Inbox className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-lg font-semibold truncate">
+                            {mailbox.display_name || mailbox.email_address}
+                          </CardTitle>
+                          <p className="text-sm text-slate-500 truncate">
+                            {mailbox.email_address}
+                          </p>
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {usersData?.users.map((user) => (
-                      <button
-                        key={user.id}
-                        onClick={() => handleUserSelect(user.id)}
-                        className={`w-full text-left p-3 rounded-md transition-colors ${
-                          selectedUserId === user.id
-                            ? 'bg-blue-100 border-blue-500 border'
-                            : 'hover:bg-gray-50 border border-gray-200'
-                        }`}
-                      >
-                        <div className="font-medium text-sm text-gray-900">
-                          {formatUserDisplayName(user)}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => router.push(`/mailbox/${mailbox.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Voir les messages
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-4">
+                    {/* Status and Permission */}
+                    <div className="flex items-center justify-between">
+                      <Badge className={`${getStatusColor(mailbox.sync_status)} flex items-center space-x-1`}>
+                        {getStatusIcon(mailbox.sync_status)}
+                        <span className="text-xs font-medium">
+                          {mailbox.sync_status === 'completed' && 'Synchronisé'}
+                          {mailbox.sync_status === 'syncing' && 'En cours'}
+                          {mailbox.sync_status === 'error' && 'Erreur'}
+                          {mailbox.sync_status === 'pending' && 'En attente'}
+                        </span>
+                      </Badge>
+                      <Badge className={getPermissionBadge(assignment.permission_level)}>
+                        {assignment.permission_level === 'read' && 'Lecture'}
+                        {assignment.permission_level === 'read_write' && 'Lecture/Écriture'}
+                        {assignment.permission_level === 'admin' && 'Administration'}
+                      </Badge>
+                    </div>
+
+                    <Separator />
+
+                    {/* Messages Preview */}
+                    {assignment.messages && assignment.messages.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                          Messages récents ({assignment.messages.length})
+                        </p>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {assignment.messages.slice(0, 3).map((message, index) => (
+                            <div
+                              key={message.id || index}
+                              className="p-2 bg-slate-50 dark:bg-slate-800 rounded-md text-xs"
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium text-slate-900 dark:text-slate-100 truncate">
+                                  {message.subject || 'Sans objet'}
+                                </span>
+                                {!message.isRead && (
+                                  <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
+                                )}
+                              </div>
+                              <p className="text-slate-600 dark:text-slate-400 truncate">
+                                {message.from?.emailAddress?.name || 'Expéditeur inconnu'}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {getUserPrimaryEmail(user)}
-                        </div>
-                        {user.department && (
-                          <div className="text-xs text-gray-400">
-                            {user.department}
-                          </div>
+                        {assignment.messages.length > 3 && (
+                          <p className="text-xs text-slate-500 text-center">
+                            +{assignment.messages.length - 3} autres messages
+                          </p>
                         )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <Inbox className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                        <p className="text-sm text-slate-500">Aucun message récent</p>
+                      </div>
+                    )}
+
+                    {/* Action Button */}
+                    <Button
+                      className="w-full"
+                      onClick={() => router.push(`/mailbox/${mailbox.id}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Voir tous les messages
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
+        )}
 
-          {/* Contenu principal */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Formulaire d'envoi d'email */}
-            <div className="bg-white shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                  Envoyer un Email
-                </h3>
-
-                <form onSubmit={handleSendEmail} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Destinataires (séparés par des virgules)
-                    </label>
-                    <input
-                      type="text"
-                      value={emailForm.toRecipients}
-                      onChange={(e) => setEmailForm(prev => ({ ...prev, toRecipients: e.target.value }))}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="email1@example.com, email2@example.com"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      CC (optionnel)
-                    </label>
-                    <input
-                      type="text"
-                      value={emailForm.ccRecipients}
-                      onChange={(e) => setEmailForm(prev => ({ ...prev, ccRecipients: e.target.value }))}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="cc@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Sujet
-                    </label>
-                    <input
-                      type="text"
-                      value={emailForm.subject}
-                      onChange={(e) => setEmailForm(prev => ({ ...prev, subject: e.target.value }))}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Message
-                    </label>
-                    <textarea
-                      value={emailForm.body}
-                      onChange={(e) => setEmailForm(prev => ({ ...prev, body: e.target.value }))}
-                      rows={6}
-                      className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={sendingMail || !selectedUserId}
-                    className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    {sendingMail ? 'Envoi en cours...' : 'Envoyer Email'}
-                  </button>
-
-                  {!selectedUserId && (
-                    <p className="text-sm text-gray-500 text-center">
-                      Sélectionnez un utilisateur pour envoyer un email
-                    </p>
-                  )}
-                </form>
-              </div>
-            </div>
-
-            {/* Liste des emails */}
-            {selectedUserId && (
-              <div className="bg-white shadow rounded-lg">
-                <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-                    Emails Récents
-                  </h3>
-
-                  {mailLoading ? (
-                    <div className="space-y-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="animate-pulse border-b pb-4">
-                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/2 mb-1"></div>
-                          <div className="h-3 bg-gray-200 rounded w-2/3"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : mailData && mailData.messages.length > 0 ? (
-                    <div className="space-y-4">
-                      {mailData.messages.map((message) => (
-                        <div key={message.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">
-                                {message.subject || 'Pas de sujet'}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                De: {message.from?.emailAddress?.name || message.from?.emailAddress?.address}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {message.receivedDateTime ? formatDateTime(new Date(message.receivedDateTime)) : 'Date inconnue'}
-                              </p>
-                              {message.bodyPreview && (
-                                <p className="text-sm text-gray-700 mt-2 line-clamp-2">
-                                  {message.bodyPreview}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex space-x-2">
-                              {!message.isRead && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                  Non lu
-                                </span>
-                              )}
-                              {message.importance === 'high' && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  Important
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-center py-8">
-                      Aucun email trouvé pour cet utilisateur
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+        {/* Empty State */}
+        {!loading && mailboxes.length === 0 && !error && (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Inbox className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-2">
+                Aucune boîte email assignée
+              </h3>
+              <p className="text-slate-500 dark:text-slate-400 mb-4">
+                Contactez votre administrateur pour obtenir l&apos;accès à des boîtes emails.
+              </p>
+              <Button onClick={handleRefresh}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Actualiser
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </main>
     </div>
   );
 }
