@@ -6,7 +6,12 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "check-all": "npm run type-check && npm run lint",
+    "ci": "npm run type-check && npm run lint && npm run build"
   },
   "dependencies": {
     "@azure/msal-node": "^3.7.3",
@@ -32,11 +37,31 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-import": "^2.32.0",
     "shadcn": "^3.3.0",
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.8",
-    "typescript": "^5"
+    "typescript": "^5",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }

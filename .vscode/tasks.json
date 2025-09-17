@@ -1,0 +1,154 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Type Check",
+      "type": "npm",
+      "script": "type-check",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": "$tsc",
+      "detail": "Run TypeScript compiler for type checking"
+    },
+    {
+      "label": "Type Check (Watch)",
+      "type": "npm",
+      "script": "type-check:watch",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": "$tsc-watch",
+      "detail": "Run TypeScript compiler in watch mode"
+    },
+    {
+      "label": "Lint",
+      "type": "npm",
+      "script": "lint",
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": "$eslint-stylish",
+      "detail": "Run ESLint for code quality checks"
+    },
+    {
+      "label": "Lint & Fix",
+      "type": "npm",
+      "script": "lint:fix",
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": "$eslint-stylish",
+      "detail": "Run ESLint and automatically fix issues"
+    },
+    {
+      "label": "Check All",
+      "type": "npm",
+      "script": "check-all",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": ["$tsc", "$eslint-stylish"],
+      "detail": "Run both type checking and linting"
+    },
+    {
+      "label": "Build",
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": ["$tsc", "$eslint-stylish"],
+      "detail": "Build the Next.js application"
+    },
+    {
+      "label": "Dev Server",
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": true
+      },
+      "problemMatcher": {
+        "pattern": [
+          {
+            "regexp": ".*",
+            "file": 1,
+            "location": 2,
+            "message": 3
+          }
+        ],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^.*- Local:.*$",
+          "endsPattern": "^.*compiled .*successfully.*$"
+        }
+      },
+      "detail": "Start Next.js development server with Turbopack"
+    }
+  ]
+}

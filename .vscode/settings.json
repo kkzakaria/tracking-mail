@@ -1,4 +1,5 @@
 {
+  // Deno settings for Supabase Edge Functions
   "deno.enablePaths": [
     "supabase/functions"
   ],
@@ -18,7 +19,120 @@
     "http",
     "net"
   ],
+
+  // TypeScript settings
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.format.enable": true,
+  "typescript.validate.enable": true,
+  "typescript.reportStyleChecksAsWarnings": false,
+  "typescript.preferences.quoteStyle": "single",
+  "typescript.preferences.semicolons": "insert",
+
+  // ESLint settings
+  "eslint.enable": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "eslint.run": "onType",
+  "eslint.format.enable": true,
+  "eslint.codeAction.showDocumentation": {
+    "enable": true
+  },
+
+  // Auto-fix on save
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // Format on save
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+
+  // File-specific formatters
   "[typescript]": {
     "editor.defaultFormatter": "denoland.vscode-deno"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-eslint"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-eslint"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-eslint"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+
+  // Files settings
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.turbo": true
+  },
+
+  // Search settings
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.turbo": true,
+    "**/coverage": true
+  },
+
+  // TypeScript workspace settings
+  "typescript.preferences.includeAutomaticOptionalChainCompletions": true,
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": true,
+  "typescript.inlayHints.parameterNames.enabled": "all",
+  "typescript.inlayHints.variableTypes.enabled": true,
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+
+  // Error lens configuration
+  "errorLens.enabledDiagnosticLevels": ["error", "warning", "info"],
+  "errorLens.severityText": ["ERROR", "WARNING", "INFO"],
+
+  // Problems panel
+  "problems.visibility": true,
+  "problems.defaultViewMode": "tree",
+
+  // File associations
+  "files.associations": {
+    "*.css": "tailwindcss",
+    "*.json": "jsonc"
+  },
+
+  // Emmet
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+
+  // Breadcrumbs
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.showClasses": true,
+  "breadcrumbs.showFunctions": true,
+  "breadcrumbs.showVariables": true,
+
+  // Explorer file nesting
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.ts": "${capture}.js, ${capture}.d.ts, ${capture}.js.map",
+    "*.tsx": "${capture}.js, ${capture}.d.ts, ${capture}.js.map",
+    "package.json": "package-lock.json, pnpm-lock.yaml, yarn.lock",
+    "tailwind.config.*": "tailwind.config.*",
+    "tsconfig.json": "tsconfig.*.json"
   }
 }

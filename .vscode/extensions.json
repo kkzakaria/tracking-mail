@@ -1,3 +1,43 @@
 {
-  "recommendations": ["denoland.vscode-deno"]
+  "recommendations": [
+    // Deno for Supabase Edge Functions
+    "denoland.vscode-deno",
+
+    // TypeScript and JavaScript
+    "ms-vscode.vscode-typescript-next",
+
+    // ESLint and Code Quality
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "rvest.vs-code-prettier-eslint",
+
+    // Error visualization
+    "usernamehw.errorlens",
+
+    // React and Next.js
+    "ms-vscode.vscode-react-javascript",
+    "formulahendry.auto-rename-tag",
+    "bradlc.vscode-tailwindcss",
+
+    // Supabase
+    "supabase.supabase",
+
+    // Git
+    "eamodio.gitlens",
+
+    // Utilities
+    "christian-kohler.path-intellisense",
+    "formulahendry.auto-close-tag",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+
+    // Themes and UI (optional)
+    "pkief.material-icon-theme",
+    "github.github-vscode-theme"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript",
+    "hookyqr.beautify",
+    "dbaeumer.jshint"
+  ]
 }
