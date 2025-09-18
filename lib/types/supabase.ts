@@ -1,8 +1,3 @@
-/**
- * Types TypeScript générés pour Supabase
- * À régénérer avec : supabase gen types typescript --local > lib/types/supabase.ts
- */
-
 export type Json =
   | string
   | number
@@ -12,11 +7,36 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       mailboxes: {
         Row: {
-          configuration: Json
+          configuration: Json | null
           created_at: string
           description: string | null
           display_name: string | null
@@ -24,14 +44,14 @@ export type Database = {
           id: string
           is_active: boolean
           last_sync_at: string | null
-          mailbox_type: string
+          mailbox_type: string | null
           sync_enabled: boolean
           sync_error: string | null
-          sync_status: string
+          sync_status: string | null
           updated_at: string
         }
         Insert: {
-          configuration?: Json
+          configuration?: Json | null
           created_at?: string
           description?: string | null
           display_name?: string | null
@@ -39,14 +59,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
-          mailbox_type?: string
+          mailbox_type?: string | null
           sync_enabled?: boolean
           sync_error?: string | null
-          sync_status?: string
+          sync_status?: string | null
           updated_at?: string
         }
         Update: {
-          configuration?: Json
+          configuration?: Json | null
           created_at?: string
           description?: string | null
           display_name?: string | null
@@ -54,75 +74,13 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_sync_at?: string | null
-          mailbox_type?: string
+          mailbox_type?: string | null
           sync_enabled?: boolean
           sync_error?: string | null
-          sync_status?: string
+          sync_status?: string | null
           updated_at?: string
         }
         Relationships: []
-      }
-      microsoft_graph_config: {
-        Row: {
-          client_id: string
-          client_secret_encrypted: string
-          configuration_status: string
-          configured_at: string | null
-          configured_by: string | null
-          created_at: string
-          error_message: string | null
-          id: string
-          is_active: boolean
-          last_token_refresh: string | null
-          permissions_granted: Json
-          rate_limit_info: Json
-          tenant_id: string
-          token_expires_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          client_id: string
-          client_secret_encrypted: string
-          configuration_status?: string
-          configured_at?: string | null
-          configured_by?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          is_active?: boolean
-          last_token_refresh?: string | null
-          permissions_granted?: Json
-          rate_limit_info?: Json
-          tenant_id: string
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          client_id?: string
-          client_secret_encrypted?: string
-          configuration_status?: string
-          configured_at?: string | null
-          configured_by?: string | null
-          created_at?: string
-          error_message?: string | null
-          id?: string
-          is_active?: boolean
-          last_token_refresh?: string | null
-          permissions_granted?: Json
-          rate_limit_info?: Json
-          tenant_id?: string
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "microsoft_graph_config_configured_by_fkey"
-            columns: ["configured_by"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_activity_logs: {
         Row: {
@@ -131,7 +89,7 @@ export type Database = {
           created_at: string
           id: string
           ip_address: unknown | null
-          metadata: Json
+          metadata: Json | null
           resource_id: string | null
           resource_type: string | null
           session_id: string | null
@@ -144,7 +102,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_address?: unknown | null
-          metadata?: Json
+          metadata?: Json | null
           resource_id?: string | null
           resource_type?: string | null
           session_id?: string | null
@@ -157,7 +115,7 @@ export type Database = {
           created_at?: string
           id?: string
           ip_address?: unknown | null
-          metadata?: Json
+          metadata?: Json | null
           resource_id?: string | null
           resource_type?: string | null
           session_id?: string | null
@@ -268,7 +226,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean
-          preferences: Json
+          preferences: Json | null
           role: string
           updated_at: string
         }
@@ -280,7 +238,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean
-          preferences?: Json
+          preferences?: Json | null
           role?: string
           updated_at?: string
         }
@@ -292,19 +250,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean
-          preferences?: Json
+          preferences?: Json | null
           role?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
@@ -323,20 +273,6 @@ export type Database = {
           user_name: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "user_mailbox_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "user_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_mailbox_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "user_stats"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "user_mailbox_assignments_mailbox_id_fkey"
             columns: ["mailbox_id"]
@@ -363,7 +299,6 @@ export type Database = {
       user_stats: {
         Row: {
           assigned_mailboxes_count: number | null
-          created_at: string | null
           email: string | null
           full_name: string | null
           id: string | null
@@ -371,15 +306,7 @@ export type Database = {
           user_since: string | null
           write_permissions_count: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_profiles_id_fkey"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -388,10 +315,16 @@ export type Database = {
         Returns: number
       }
       cleanup_old_activity_logs: {
-        Args: {
-          days_to_keep?: number
-        }
+        Args: { days_to_keep?: number }
         Returns: number
+      }
+      get_user_role: {
+        Args: { user_uuid?: string }
+        Returns: string
+      }
+      is_admin: {
+        Args: { user_uuid?: string }
+        Returns: boolean
       }
     }
     Enums: {
@@ -403,34 +336,129 @@ export type Database = {
   }
 }
 
-// Types d'utilité pour les tables
-export type Tables<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row']
-export type TablesInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-// Types spécifiques pour les entités principales
-export type UserProfile = Tables<'user_profiles'>
-export type Mailbox = Tables<'mailboxes'>
-export type UserMailboxAssignment = Tables<'user_mailbox_assignments'>
-export type MicrosoftGraphConfig = Tables<'microsoft_graph_config'>
-export type UserActivityLog = Tables<'user_activity_logs'>
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
-// Types pour les vues
-export type ActiveUserAssignment = Database['public']['Views']['active_user_assignments']['Row']
-export type UserStats = Database['public']['Views']['user_stats']['Row']
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
 
-// Types pour les enums (rôles, statuts, etc.)
-export type UserRole = 'user' | 'admin' | 'manager'
-export type PermissionLevel = 'read' | 'read_write' | 'admin'
-export type MailboxType = 'user' | 'shared' | 'group'
-export type SyncStatus = 'pending' | 'syncing' | 'completed' | 'error'
-export type ConfigurationStatus = 'pending' | 'configured' | 'error' | 'disabled'
-export type ActivityType =
-  | 'login'
-  | 'logout'
-  | 'mailbox_access'
-  | 'email_read'
-  | 'email_send'
-  | 'assignment_changed'
-  | 'profile_updated'
-  | 'admin_action'
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
+  public: {
+    Enums: {},
+  },
+} as const
+

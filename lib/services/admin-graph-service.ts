@@ -7,7 +7,6 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { ConfidentialClientApplication, ClientCredentialRequest } from '@azure/msal-node';
 import { createClient as createSupabaseServerClient } from '@/lib/utils/supabase/server';
-import { encryptData, decryptData } from '@/lib/utils/encryption';
 import type {
   MicrosoftUser,
   GraphApiUser,
@@ -15,7 +14,6 @@ import type {
   RateLimitInfo,
   GraphRequestOptions
 } from '@/lib/types/microsoft-graph';
-import type { MicrosoftGraphConfig } from '@/lib/types/supabase';
 
 /**
  * Configuration Microsoft Graph pour l'administration
@@ -39,6 +37,44 @@ interface GraphOperationResult<T = unknown> {
     message: string;
     details?: unknown;
   };
+}
+
+/**
+ * Statistiques de dossier email
+ */
+interface MailFolderStats {
+  id: string;
+  displayName: string;
+  parentFolderId?: string;
+  totalItemCount: number;
+  unreadItemCount: number;
+  childFolderCount: number;
+  isHidden: boolean;
+  wellKnownName?: string;
+}
+
+/**
+ * Statistiques agrégées de boîte email
+ */
+interface MailboxStats {
+  emailAddress: string;
+  totalMessages: number;
+  unreadMessages: number;
+  folders: MailFolderStats[];
+  periodFilter?: {
+    startDate: string;
+    endDate: string;
+  };
+}
+
+/**
+ * Options pour les statistiques de période
+ */
+interface PeriodStatsOptions {
+  startDate?: string; // ISO date string
+  endDate?: string;   // ISO date string
+  includeChildFolders?: boolean;
+  onlyUserFolders?: boolean; // Exclut les dossiers système
 }
 
 /**
@@ -114,11 +150,12 @@ export class AdminGraphService {
 
   /**
    * Configurer Microsoft Graph (admin uniquement)
+   * Note: Utilise maintenant les variables d'environnement directement
    */
   async configureGraph(
     config: Omit<AdminGraphConfig, 'isActive'>,
     adminUserId: string
-  ): Promise<GraphOperationResult<MicrosoftGraphConfig>> {
+  ): Promise<GraphOperationResult<any>> {
     try {
       const supabase = await createSupabaseServerClient();
 
@@ -140,7 +177,7 @@ export class AdminGraphService {
         };
       }
 
-      // Tester la configuration avant de la sauvegarder
+      // Tester la configuration
       const testResult = await this.testConfiguration(config);
       if (!testResult.success) {
         return {
@@ -149,44 +186,15 @@ export class AdminGraphService {
         };
       }
 
-      // Chiffrer le secret client
-      const encryptedSecret = encryptData(config.clientSecret);
-
-      // Sauvegarder la configuration
-      const { data: savedConfig, error: saveError } = await supabase
-        .from('microsoft_graph_config')
-        .upsert({
-          tenant_id: config.tenantId,
-          client_id: config.clientId,
-          client_secret_encrypted: encryptedSecret,
-          is_active: true,
-          configuration_status: 'configured',
-          configured_by: adminUserId,
-          configured_at: new Date().toISOString(),
-          permissions_granted: JSON.stringify(config.permissions),
-          rate_limit_info: JSON.stringify({}),
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'tenant_id,client_id'
-        })
-        .select()
-        .single();
-
-      if (saveError) {
-        return {
-          success: false,
-          error: {
-            code: 'SAVE_ERROR',
-            message: 'Erreur lors de la sauvegarde de la configuration',
-            details: saveError
-          }
-        };
-      }
-
-      // Réinitialiser le service avec la nouvelle config
+      // Réinitialiser le service avec la configuration testée
       await this.initialize();
 
-      return { success: true, data: savedConfig };
+      return {
+        success: true,
+        data: {
+          message: 'Configuration validée avec succès. Utilisation des variables d\'environnement.'
+        }
+      };
 
     } catch (error) {
       console.error('Error configuring Microsoft Graph:', error);
@@ -254,34 +262,28 @@ export class AdminGraphService {
   }
 
   /**
-   * Obtenir la configuration stockée en base
+   * Obtenir la configuration depuis les variables d'environnement
    */
   private async getStoredConfig(): Promise<AdminGraphConfig | null> {
     try {
-      const supabase = await createSupabaseServerClient();
+      const tenantId = process.env.MICROSOFT_TENANT_ID;
+      const clientId = process.env.MICROSOFT_CLIENT_ID;
+      const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
 
-      const { data, error } = await supabase
-        .from('microsoft_graph_config')
-        .select('*')
-        .eq('is_active', true)
-        .eq('configuration_status', 'configured')
-        .single();
-
-      if (error || !data) {
+      if (!tenantId || !clientId || !clientSecret) {
         return null;
       }
 
-      // Déchiffrer le secret client
-      const clientSecret = decryptData(data.client_secret_encrypted);
-
       return {
-        tenantId: data.tenant_id,
-        clientId: data.client_id,
+        tenantId,
+        clientId,
         clientSecret,
-        isActive: data.is_active,
-        permissions: Array.isArray(data.permissions_granted)
-          ? data.permissions_granted as string[]
-          : JSON.parse(data.permissions_granted as string || '[]')
+        isActive: true,
+        permissions: [
+          'https://graph.microsoft.com/Mail.Read',
+          'https://graph.microsoft.com/Mail.ReadWrite',
+          'https://graph.microsoft.com/User.Read'
+        ]
       };
 
     } catch (error) {
@@ -501,7 +503,13 @@ export class AdminGraphService {
         query = query.filter('isRead eq false');
       }
 
-      const response = await query.get();
+      const response = await this.executeWithRetry(
+        () => query.get(),
+        {
+          timeout: 15000,
+          retries: 2
+        }
+      );
 
       return {
         success: true,
@@ -509,12 +517,32 @@ export class AdminGraphService {
       };
 
     } catch (error) {
-      console.error('Error getting mailbox messages:', error);
+      console.error(`Error getting mailbox messages for ${emailAddress}:`, error);
+
+      let errorCode = 'GET_MESSAGES_ERROR';
+      let errorMessage = 'Erreur lors de la récupération des emails';
+
+      if (error instanceof Error) {
+        if (error.message === 'Request timeout') {
+          errorCode = 'TIMEOUT_ERROR';
+          errorMessage = `Timeout lors de la récupération des emails de ${emailAddress}`;
+        } else if (error.message.includes('401') || error.message.includes('authentication')) {
+          errorCode = 'AUTH_ERROR';
+          errorMessage = 'Erreur d\'authentification Microsoft Graph';
+        } else if (error.message.includes('403') || error.message.includes('permission')) {
+          errorCode = 'PERMISSION_ERROR';
+          errorMessage = `Permissions insuffisantes pour accéder à ${emailAddress}`;
+        } else if (error.message.includes('404')) {
+          errorCode = 'MAILBOX_NOT_FOUND';
+          errorMessage = `Boîte email ${emailAddress} non trouvée`;
+        }
+      }
+
       return {
         success: false,
         error: {
-          code: 'GET_MESSAGES_ERROR',
-          message: 'Erreur lors de la récupération des emails',
+          code: errorCode,
+          message: errorMessage,
           details: error
         }
       };
@@ -628,8 +656,8 @@ export class AdminGraphService {
 
       const lastSyncInfo = {
         total: syncStats?.length || 0,
-        syncing: syncStats?.filter((s: { sync_status: string }) => s.sync_status === 'syncing').length || 0,
-        errors: syncStats?.filter((s: { sync_status: string }) => s.sync_status === 'error').length || 0
+        syncing: syncStats?.filter((s: { sync_status: string | null }) => s.sync_status === 'syncing').length || 0,
+        errors: syncStats?.filter((s: { sync_status: string | null }) => s.sync_status === 'error').length || 0
       };
 
       return {
@@ -693,19 +721,15 @@ export class AdminGraphService {
         // Gérer le rate limiting
         if (this.isRateLimitError(error)) {
           const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-          console.warn(`Rate limited, waiting ${delay}ms before retry ${attempt + 1}/${retries}`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
 
-        // Ne pas retry à la dernière tentative
         if (attempt === retries) {
           throw lastError;
         }
 
-        // Backoff exponentiel
         const delay = Math.pow(2, attempt) * 1000;
-        console.warn(`Request failed, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -753,7 +777,6 @@ export class AdminGraphService {
 
     const waitTime = Math.max(0, rateLimitInfo.reset - Date.now());
     if (waitTime > 0) {
-      console.warn(`Rate limited, waiting ${waitTime}ms`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
@@ -769,21 +792,17 @@ export class AdminGraphService {
     rateLimitInfo?: RateLimitInfo;
   }>> {
     try {
-      const supabase = await createSupabaseServerClient();
-
-      const { data: config } = await supabase
-        .from('microsoft_graph_config')
-        .select('configuration_status, last_token_refresh, rate_limit_info, is_active')
-        .eq('is_active', true)
-        .single();
+      // Vérifier la configuration via les variables d'environnement
+      const config = await this.getStoredConfig();
+      const isConfigured = !!config && !!config.tenantId && !!config.clientId && !!config.clientSecret;
 
       return {
         success: true,
         data: {
           isInitialized: !!this.confidentialClient,
-          isConfigured: !!config,
-          configurationStatus: config?.configuration_status || 'not_configured',
-          lastTokenRefresh: config?.last_token_refresh || undefined,
+          isConfigured,
+          configurationStatus: isConfigured ? 'configured' : 'not_configured',
+          lastTokenRefresh: undefined, // Non applicable avec les variables d'environnement
           rateLimitInfo: this.rateLimitCache.get('global')
         }
       };
@@ -794,6 +813,279 @@ export class AdminGraphService {
         error: {
           code: 'STATUS_ERROR',
           message: 'Erreur lors de la vérification du statut',
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * Obtenir tous les dossiers d'une boîte email avec leurs statistiques
+   */
+  async getMailboxFolders(
+    emailAddress: string,
+    options?: { includeChildFolders?: boolean }
+  ): Promise<GraphOperationResult<MailFolderStats[]>> {
+    try {
+      const client = await this.createGraphClient();
+      if (!client) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_CLIENT',
+            message: 'Impossible de créer le client Graph'
+          }
+        };
+      }
+
+      const rootFoldersResponse = await this.executeWithRetry(
+        () => client.api(`/users/${emailAddress}/mailFolders`)
+          .select('id,displayName,parentFolderId,totalItemCount,unreadItemCount,childFolderCount,isHidden,wellKnownName')
+          .get(),
+        { timeout: 10000, retries: 2 }
+      );
+
+      let allFolders: MailFolderStats[] = rootFoldersResponse.value.map((folder: any) => ({
+        id: folder.id,
+        displayName: folder.displayName,
+        parentFolderId: folder.parentFolderId,
+        totalItemCount: folder.totalItemCount || 0,
+        unreadItemCount: folder.unreadItemCount || 0,
+        childFolderCount: folder.childFolderCount || 0,
+        isHidden: folder.isHidden || false,
+        wellKnownName: folder.wellKnownName
+      }));
+
+      if (options?.includeChildFolders) {
+        for (const folder of allFolders) {
+          if (folder.childFolderCount > 0) {
+            try {
+              const childFoldersResponse = await this.executeWithRetry(
+                () => client.api(`/users/${emailAddress}/mailFolders/${folder.id}/childFolders`)
+                  .select('id,displayName,parentFolderId,totalItemCount,unreadItemCount,childFolderCount,isHidden,wellKnownName')
+                  .get(),
+                { timeout: 10000, retries: 2 }
+              );
+
+              const childFolders: MailFolderStats[] = childFoldersResponse.value.map((childFolder: any) => ({
+                id: childFolder.id,
+                displayName: childFolder.displayName,
+                parentFolderId: childFolder.parentFolderId,
+                totalItemCount: childFolder.totalItemCount || 0,
+                unreadItemCount: childFolder.unreadItemCount || 0,
+                childFolderCount: childFolder.childFolderCount || 0,
+                isHidden: childFolder.isHidden || false,
+                wellKnownName: childFolder.wellKnownName
+              }));
+
+              allFolders = allFolders.concat(childFolders);
+            } catch (error) {
+              console.error(`Error fetching child folders for ${folder.displayName}:`, error);
+            }
+          }
+        }
+      }
+
+      return {
+        success: true,
+        data: allFolders
+      };
+
+    } catch (error) {
+      console.error(`Error getting mailbox folders for ${emailAddress}:`, error);
+      return {
+        success: false,
+        error: {
+          code: 'GET_FOLDERS_ERROR',
+          message: 'Erreur lors de la récupération des dossiers',
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * Obtenir les statistiques optimisées d'une boîte email pour une période donnée
+   */
+  async getMailboxStatsForPeriod(
+    emailAddress: string,
+    options?: PeriodStatsOptions
+  ): Promise<GraphOperationResult<MailboxStats>> {
+    try {
+      const client = await this.createGraphClient();
+      if (!client) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_CLIENT',
+            message: 'Impossible de créer le client Graph'
+          }
+        };
+      }
+
+      const foldersResult = await this.getMailboxFolders(emailAddress, {
+        includeChildFolders: options?.includeChildFolders ?? true
+      });
+
+      if (!foldersResult.success || !foldersResult.data) {
+        return {
+          success: false,
+          error: foldersResult.error || {
+            code: 'FOLDERS_ERROR',
+            message: 'Impossible de récupérer les dossiers'
+          }
+        };
+      }
+
+      let folders = foldersResult.data;
+
+      if (options?.onlyUserFolders) {
+        folders = folders.filter(folder =>
+          !folder.wellKnownName ||
+          ['inbox', 'sentitems', 'drafts'].includes(folder.wellKnownName.toLowerCase())
+        );
+      }
+
+      if (options?.startDate || options?.endDate) {
+        const updatedFolders: MailFolderStats[] = [];
+
+        for (const folder of folders) {
+          try {
+            const dateFilters: string[] = [];
+
+            if (options.startDate) {
+              dateFilters.push(`receivedDateTime ge ${options.startDate}`);
+            }
+            if (options.endDate) {
+              dateFilters.push(`receivedDateTime lt ${options.endDate}`);
+            }
+
+            const filterQuery = dateFilters.length > 0 ? dateFilters.join(' and ') : '';
+
+            const totalCountResponse = await this.executeWithRetry(
+              () => client.api(`/users/${emailAddress}/mailFolders/${folder.id}/messages/$count`)
+                .filter(filterQuery)
+                .get(),
+              { timeout: 8000, retries: 2 }
+            );
+
+            const unreadFilter = filterQuery ?
+              `${filterQuery} and isRead eq false` :
+              'isRead eq false';
+
+            const unreadCountResponse = await this.executeWithRetry(
+              () => client.api(`/users/${emailAddress}/mailFolders/${folder.id}/messages/$count`)
+                .filter(unreadFilter)
+                .get(),
+              { timeout: 8000, retries: 2 }
+            );
+
+            updatedFolders.push({
+              ...folder,
+              totalItemCount: totalCountResponse || 0,
+              unreadItemCount: unreadCountResponse || 0
+            });
+
+          } catch (error) {
+            console.error(`Error counting messages for folder ${folder.displayName}:`, error);
+            updatedFolders.push(folder);
+          }
+        }
+
+        folders = updatedFolders;
+      }
+
+      const totalMessages = folders.reduce((sum, folder) => sum + folder.totalItemCount, 0);
+      const unreadMessages = folders.reduce((sum, folder) => sum + folder.unreadItemCount, 0);
+
+      const stats: MailboxStats = {
+        emailAddress,
+        totalMessages,
+        unreadMessages,
+        folders,
+        periodFilter: (options?.startDate || options?.endDate) ? {
+          startDate: options.startDate || 'all',
+          endDate: options.endDate || 'all'
+        } : undefined
+      };
+
+      return {
+        success: true,
+        data: stats
+      };
+
+    } catch (error) {
+      console.error(`Error getting mailbox stats for ${emailAddress}:`, error);
+      return {
+        success: false,
+        error: {
+          code: 'GET_STATS_ERROR',
+          message: 'Erreur lors de la récupération des statistiques',
+          details: error
+        }
+      };
+    }
+  }
+
+
+  /**
+   * Obtenir un aperçu rapide des statistiques sans récupération de messages
+   */
+  async getMailboxQuickStats(emailAddress: string): Promise<GraphOperationResult<MailboxStats>> {
+    try {
+      const token = await this.acquireApplicationToken();
+      if (!token) {
+        throw new Error('No token available');
+      }
+
+      const url = `https://graph.microsoft.com/v1.0/users/${emailAddress}/mailFolders?$select=id,displayName,totalItemCount,unreadItemCount,childFolderCount`;
+
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const foldersResponse = await response.json();
+      const folders = foldersResponse.value || [];
+
+      let totalMessages = 0;
+      let unreadMessages = 0;
+
+      folders.forEach((folder: any) => {
+        totalMessages += folder.totalItemCount || 0;
+        unreadMessages += folder.unreadItemCount || 0;
+      });
+
+      return {
+        success: true,
+        data: {
+          emailAddress,
+          totalMessages,
+          unreadMessages,
+          folders: folders.map((folder: any) => ({
+            id: folder.id,
+            displayName: folder.displayName,
+            totalItemCount: folder.totalItemCount || 0,
+            unreadItemCount: folder.unreadItemCount || 0,
+            childFolderCount: folder.childFolderCount || 0
+          }))
+        }
+      };
+
+    } catch (error) {
+      console.error(`Error getting mailbox quick stats for ${emailAddress}:`, error);
+      return {
+        success: false,
+        error: {
+          code: 'QUICK_STATS_ERROR',
+          message: 'Erreur lors de la récupération des statistiques rapides',
           details: error
         }
       };

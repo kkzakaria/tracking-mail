@@ -4,13 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { AdminGraphService } from '@/lib/services/admin-graph-service';
+// Direct Microsoft Graph implementation - no AdminGraphService dependency
 import { createClient as createSupabaseServerClient } from '@/lib/utils/supabase/server';
 
 /**
  * Vérifier les permissions admin
  */
-async function verifyAdmin(request: NextRequest) {
+async function verifyAdmin(_request: NextRequest) {
   const supabase = await createSupabaseServerClient();
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -77,36 +77,96 @@ export async function POST(
       })
       .eq('id', params.id);
 
-    // Lancer la synchronisation
-    const adminGraphService = AdminGraphService.getInstance();
-    const syncResult = await adminGraphService.syncMailbox(mailbox.email_address);
+    // Synchronisation directe avec Microsoft Graph
+    try {
+      const { ConfidentialClientApplication } = await import('@azure/msal-node');
 
-    if (!syncResult.success) {
-      // Le statut d'erreur est déjà mis à jour dans syncMailbox
+      const config = {
+        clientId: process.env.MICROSOFT_CLIENT_ID!,
+        clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+        tenantId: process.env.MICROSOFT_TENANT_ID!
+      };
+
+      const client = new ConfidentialClientApplication({
+        auth: {
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
+          authority: `https://login.microsoftonline.com/${config.tenantId}`
+        }
+      });
+
+      // Acquérir un token
+      const response = await client.acquireTokenByClientCredential({
+        scopes: ['https://graph.microsoft.com/.default']
+      });
+
+      if (!response?.accessToken) {
+        throw new Error('Impossible d\'obtenir un token d\'accès Microsoft Graph');
+      }
+
+      // Récupérer les messages de la boîte email
+      const messagesResponse = await fetch(
+        `https://graph.microsoft.com/v1.0/users/${mailbox.email_address}/messages?$select=id,subject,from,receivedDateTime,bodyPreview,isRead,importance&$top=50&$orderby=receivedDateTime desc`,
+        {
+          headers: {
+            'Authorization': `Bearer ${response.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!messagesResponse.ok) {
+        const errorText = await messagesResponse.text();
+        throw new Error(`Erreur Microsoft Graph API: ${errorText}`);
+      }
+
+      const messagesData = await messagesResponse.json();
+      const messages = messagesData.value || [];
+
+      // Mettre à jour le statut de synchronisation réussie
+      await supabase
+        .from('mailboxes')
+        .update({
+          last_sync_at: new Date().toISOString(),
+          sync_status: 'completed',
+          sync_error: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', params.id);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          messageCount: messages.length,
+          recentMessages: messages.slice(0, 10), // Premiers 10 messages pour l'aperçu
+          syncedAt: new Date().toISOString(),
+          emailAddress: mailbox.email_address
+        },
+        message: `Synchronisation réussie : ${messages.length} messages trouvés`
+      });
+
+    } catch (graphError) {
+      console.error('Microsoft Graph sync error:', graphError);
+
+      // Mettre à jour le statut d'erreur
+      await supabase
+        .from('mailboxes')
+        .update({
+          last_sync_at: new Date().toISOString(),
+          sync_status: 'error',
+          sync_error: graphError instanceof Error ? graphError.message : 'Erreur Microsoft Graph',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', params.id);
+
       return NextResponse.json(
         {
-          error: syncResult.error?.code || 'SYNC_ERROR',
-          message: syncResult.error?.message || 'Erreur lors de la synchronisation'
+          error: 'GRAPH_SYNC_ERROR',
+          message: 'Erreur lors de la synchronisation avec Microsoft Graph'
         },
         { status: 500 }
       );
     }
-
-    // Obtenir les messages récents après synchronisation
-    const messagesResult = await adminGraphService.getMailboxMessages(
-      mailbox.email_address,
-      { limit: 10 }
-    );
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        messageCount: syncResult.data?.messageCount || 0,
-        recentMessages: messagesResult.success ? messagesResult.data : [],
-        syncedAt: new Date().toISOString()
-      },
-      message: `Synchronisation réussie : ${syncResult.data?.messageCount || 0} messages trouvés`
-    });
 
   } catch (error) {
     console.error('Error syncing mailbox:', error);
