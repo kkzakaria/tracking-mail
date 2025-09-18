@@ -18,6 +18,7 @@ import {
 import { useSupabaseAuth, useUserMailboxes } from '@/lib/hooks/use-user-mailboxes';
 import { useMailboxSync } from '@/lib/hooks/use-mailbox-sync';
 import { MessageStatusTable } from '@/components/ui/message-status-table';
+import { SevenDayStats } from '@/components/ui/seven-day-stats';
 import {
   Mail,
   Inbox,
@@ -321,58 +322,8 @@ export default function UserDashboard() {
           </p>
         </div>
 
-        {/* Total Stats Summary */}
-        {statsData?.totalStats && (
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3 mb-6">
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex-shrink-0">
-                  <Inbox className="h-8 w-8 text-blue-600" />
-                </div>
-                <div className="ml-4">
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {statsData.totalStats.mailboxCount}
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Boîtes assignées
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex-shrink-0">
-                  <Mail className="h-8 w-8 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {statsData.totalStats.totalMessages}
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Messages total
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="flex items-center p-6">
-                <div className="flex-shrink-0">
-                  <AlertCircle className="h-8 w-8 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                    {statsData.totalStats.unreadMessages}
-                  </div>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    Messages non lus
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Statistiques des 7 derniers jours - NOUVELLE API */}
+        <SevenDayStats className="mb-8" />
 
         {/* Stats Error State */}
         {statsError && (

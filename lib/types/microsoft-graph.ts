@@ -214,6 +214,75 @@ export interface RateLimitInfo {
   limit: number;
 }
 
+/**
+ * Statistiques de boîte email pour une période
+ */
+export interface MailboxPeriodStats {
+  emailAddress: string;
+  mailboxId?: string;
+  mailboxName?: string;
+  totalMessages: number;
+  unreadMessages: number;
+  readMessages: number;
+  unansweredMessages: number;
+  answeredMessages: number;
+  period: {
+    startDate: string | null;
+    endDate: string | null;
+    description: string;
+  };
+  folders?: FolderStats[];
+  sampleUnanswered?: UnansweredMessage[];
+  generatedAt?: string;
+  parameters?: StatsQueryParams;
+  summary?: {
+    periodDays: number | null;
+    responseRate: number;
+    readRate: number;
+  };
+}
+
+/**
+ * Statistiques par dossier
+ */
+export interface FolderStats {
+  id: string;
+  displayName: string;
+  totalMessages: number;
+  unreadMessages: number;
+  unansweredMessages?: number;
+  wellKnownName?: string;
+}
+
+/**
+ * Message sans réponse
+ */
+export interface UnansweredMessage {
+  id: string;
+  subject: string;
+  from: {
+    name?: string;
+    address: string;
+  };
+  receivedDateTime: string;
+  conversationId: string;
+  importance: string;
+  daysSinceReceived: number;
+}
+
+/**
+ * Paramètres de requête pour les statistiques
+ */
+export interface StatsQueryParams {
+  startDate?: string;
+  endDate?: string;
+  includeFolders?: boolean;
+  includeUnanswered?: boolean;
+  includeUnansweredSample?: boolean;
+  onlyUserFolders?: boolean;
+  quick?: boolean;
+}
+
 export interface GraphRequestOptions {
   retries?: number;
   timeout?: number;

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js 15 application called "tracking-mail" built with React 19, TypeScript, and Tailwind CSS v4. The project uses Turbopack for development and includes Supabase for backend services.
+Email tracking application built with Next.js 15, React 19, TypeScript, and Tailwind CSS v4. Integrates with Microsoft Graph API for mailbox access and uses Supabase for backend services including authentication and data storage.
 
 ## Development Commands
 
@@ -13,6 +13,11 @@ This is a Next.js 15 application called "tracking-mail" built with React 19, Typ
 - `pnpm build` - Build production application with Turbopack
 - `pnpm start` - Start production server
 - `pnpm lint` - Run ESLint for code quality
+- `pnpm lint:fix` - Auto-fix linting issues
+- `pnpm type-check` - Run TypeScript type checking
+- `pnpm type-check:watch` - Watch mode for type checking
+- `pnpm check-all` - Run both type checking and linting
+- `pnpm ci` - Full CI check: type-check, lint, and build
 
 ### Supabase Local Development
 - `supabase start` - Start local Supabase stack (requires Docker)
@@ -30,83 +35,93 @@ Local Supabase URLs:
 
 ## Architecture & Structure
 
-### Frontend Architecture
-- **Framework**: Next.js 15 with App Router
-- **Styling**: Tailwind CSS v4 with CSS variables for theming
-- **UI Components**: Shadcn/ui design system (New York style) with Lucide icons
-- **Typography**: Geist font family (sans and mono variants)
-- **Build Tool**: Turbopack for fast development and builds
+### Microsoft Graph Integration
+The application integrates with Microsoft Graph API for email tracking:
+- **Configuration**: `lib/config/microsoft-graph.ts` - API endpoints and permission scopes
+- **Service Layer**: `lib/services/microsoft-graph.ts` - Core Graph API client
+- **Admin Service**: `lib/services/admin-graph-service.ts` - Administrative mailbox operations
+- **Authentication**: OAuth 2.0 flow with client credentials for application permissions
+- **Encryption**: Sensitive tokens stored encrypted in Supabase using AES-256
 
-### Key Directories
-- `app/` - Next.js App Router pages and layouts
-- `lib/` - Utility functions and shared logic
-- `components/` - React components (following Shadcn/ui structure)
-- `supabase/` - Database migrations, edge functions, and local config
-- `public/` - Static assets
+### Authentication Flow
+Two-tier authentication system:
+1. **Supabase Auth**: Primary user authentication and session management
+2. **Microsoft Graph**: OAuth integration for mailbox access with encrypted token storage
 
-### Styling System
-- Uses Tailwind CSS v4 with custom color system based on OKLCH color space
-- CSS variables for theme management (light/dark mode support)
-- Sidebar color scheme variables pre-configured
-- Custom radius values and chart color palette included
+Key authentication files:
+- `lib/services/user-auth-service.ts` - User authentication service layer
+- `lib/services/auth-service.ts` - Microsoft Graph authentication
+- `lib/middleware/auth-middleware.ts` - Route protection middleware
+- `lib/hooks/use-auth.ts` - React hook for auth state
 
-### Database & Backend
-- **Supabase**: PostgreSQL database with real-time subscriptions
-- **Authentication**: Supabase Auth with JWT tokens
-- **Storage**: File storage with 50MB limit
-- **Edge Functions**: Deno runtime for serverless functions
-- **Local Development**: Full Supabase stack runs locally via Docker
+### Database Schema
+Supabase migrations in `supabase/migrations/`:
+- User profiles with admin role support
+- Microsoft authentication tokens (encrypted)
+- Row Level Security (RLS) policies for data isolation
 
-### Development Tools
-- **TypeScript**: Strict mode enabled with Next.js plugin
-- **ESLint**: Next.js and TypeScript rules configured
-- **PostCSS**: Tailwind CSS processing
-- **VS Code**: Deno extension recommended for edge functions
+### API Routes
+- `/api/auth/microsoft/callback` - OAuth callback handler
+- `/api/admin/*` - Admin-only endpoints for mailbox management
+- Protected routes require authentication via middleware
 
 ## Code Conventions
 
 ### Path Aliases
-The project uses TypeScript path mapping:
 - `@/*` maps to root directory
-- `@/components` for UI components
-- `@/lib` for utilities
-- `@/hooks` for custom React hooks
+- `@/components` - React components
+- `@/lib` - Utilities and services
+- `@/hooks` - Custom React hooks
 
-### Utility Functions
-- `cn()` function in `lib/utils.ts` combines clsx and tailwind-merge for conditional CSS classes
-- Follow Shadcn/ui patterns for component composition
+### Service Architecture
+- Services in `lib/services/` handle business logic
+- Hooks in `lib/hooks/` provide React integration
+- Utils in `lib/utils/` for shared utilities
+- Middleware in `lib/middleware/` for request processing
 
-### Component Structure
-- UI components should follow Shadcn/ui patterns
-- Use `cn()` for conditional styling
-- Implement proper TypeScript interfaces
-- Support both light and dark themes via CSS variables
+### TypeScript Patterns
+- Strict mode enabled with comprehensive type checking
+- Interfaces defined in `lib/types/`
+- Type-safe Supabase client with generated types
 
 ## Environment Setup
 
 ### Required Environment Variables
-- Database and auth settings handled by Supabase local config
-- Optional: `OPENAI_API_KEY` for Supabase AI features in Studio
-- SMS/Email providers require additional API keys (see supabase/config.toml)
+```
+# Microsoft Graph Configuration
+MICROSOFT_CLIENT_ID=your-microsoft-client-id
+MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
+MICROSOFT_TENANT_ID=your-tenant-id-or-common
+MICROSOFT_REDIRECT_URI=http://localhost:3000/api/auth/microsoft/callback
 
-### Local Development Prerequisites
-- Node.js with pnpm
-- Docker (for Supabase local development)
-- Supabase CLI installed globally
+# Encryption
+ENCRYPTION_KEY=your-32-character-or-longer-encryption-key
+
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+```
+
+### Git Hooks
+Pre-commit hooks via Husky and lint-staged:
+- Auto-runs ESLint fixes on staged files
+- Formats JSON, Markdown, and YAML files with Prettier
 
 ## Testing & Quality
 
-### Code Quality
-- ESLint configuration includes Next.js and TypeScript rules
-- Strict TypeScript configuration
-- Import/export patterns follow ES modules
+### Code Quality Tools
+- ESLint with Next.js and TypeScript rules
+- TypeScript strict mode with additional checks
+- Husky pre-commit hooks for automated checks
 
-### Database
-- Migrations enabled with schema validation
-- Seed data can be loaded via `./seed.sql`
-- Local database resets preserve migration history
+### Development Workflow
+1. Start local Supabase: `supabase start`
+2. Run development server: `pnpm dev`
+3. Access app at http://localhost:3000
+4. View database at http://127.0.0.1:8003
 
 ### Deployment
 - Optimized for Vercel deployment
-- Static assets served from `public/`
-- Build artifacts excluded from version control
+- Environment variables required for production
+- Database migrations auto-applied on Supabase
