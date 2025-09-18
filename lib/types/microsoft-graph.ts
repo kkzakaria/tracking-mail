@@ -41,6 +41,20 @@ export interface MicrosoftUser {
   department?: string;
   businessPhones?: string[];
   mobilePhone?: string;
+  accountEnabled?: boolean;
+}
+
+/**
+ * Résultat d'une opération Microsoft Graph avec gestion d'erreur
+ */
+export interface GraphOperationResult<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
 }
 
 export interface AuthSession {
@@ -95,6 +109,26 @@ export interface GraphApiUser {
   department?: string;
   businessPhones?: string[];
   mobilePhone?: string;
+  accountEnabled?: boolean;
+}
+
+/**
+ * Options pour les requêtes Graph API
+ */
+export interface GraphRequestOptions {
+  timeout?: number;
+  retries?: number;
+  skipCache?: boolean;
+}
+
+/**
+ * Informations de rate limiting
+ */
+export interface RateLimitInfo {
+  limit: number;
+  remaining: number;
+  reset: number;
+  retryAfter: number;
 }
 
 export interface GraphApiMessage {
