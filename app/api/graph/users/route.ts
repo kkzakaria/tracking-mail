@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/services/auth-service';
-import { MicrosoftGraphService } from '@/lib/services/microsoft-graph';
+import { AdminGraphService } from '@/lib/services/admin-graph-service';
 
 /**
  * GET /api/graph/users
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     const filter = searchParams.get('filter');
 
     // Get users from Microsoft Graph
-    const graphService = MicrosoftGraphService.getInstance();
+    const graphService = AdminGraphService.getInstance();
     const users = await graphService.getAllUsers(session.accessToken, {
       retries: 3,
       timeout: 30000,

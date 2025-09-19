@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/services/auth-service';
-import { MicrosoftGraphService } from '@/lib/services/microsoft-graph';
+import { AdminGraphService } from '@/lib/services/admin-graph-service';
 
 /**
  * GET /api/graph/calendar/[userId]
@@ -60,13 +60,15 @@ export async function GET(
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Get calendar events from Microsoft Graph
-    const graphService = MicrosoftGraphService.getInstance();
-    const events = await graphService.getUserCalendar(userId, session.accessToken, {
-      retries: 3,
-      timeout: 30000,
-      rateLimitHandling: true
-    });
+    // TODO: Calendar functionality needs to be implemented in new service architecture
+    // This API route needs refactoring to use the appropriate specialized services
+    return NextResponse.json(
+      {
+        error: 'Service Migration In Progress',
+        message: 'Calendar API is being migrated to the new service architecture. This functionality is temporarily unavailable.'
+      },
+      { status: 501 }
+    );
 
     // Filter by date range if provided
     let filteredEvents = events;

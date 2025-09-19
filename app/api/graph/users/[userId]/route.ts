@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/services/auth-service';
-import { MicrosoftGraphService } from '@/lib/services/microsoft-graph';
+import { GraphUserService } from '@/lib/services/graph';
 
 /**
  * GET /api/graph/users/[userId]
@@ -55,8 +55,20 @@ export async function GET(
     }
 
     // Get user from Microsoft Graph
-    const graphService = MicrosoftGraphService.getInstance();
-    const user = await graphService.getUser(userId, session.accessToken);
+    const userService = GraphUserService.getInstance();
+    const result = await userService.getUserById(userId);
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          error: 'User Not Found',
+          message: result.error?.message || 'Failed to fetch user'
+        },
+        { status: 404 }
+      );
+    }
+
+    const user = result.data;
 
     return NextResponse.json({
       success: true,

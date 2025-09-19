@@ -13,7 +13,7 @@ import {
 } from '../config/microsoft-graph';
 import { encryptToken, decryptToken, generateStateParameter } from '../utils/encryption';
 import { TokenStorage, AuthAttemptLogger } from './supabase-client';
-import { MicrosoftGraphService } from './microsoft-graph';
+import { AdminGraphService } from './admin-graph-service';
 
 /**
  * Authentication Service
@@ -21,10 +21,10 @@ import { MicrosoftGraphService } from './microsoft-graph';
  */
 export class AuthService {
   private static instance: AuthService;
-  private graphService: MicrosoftGraphService;
+  private graphService: AdminGraphService;
 
   constructor() {
-    this.graphService = MicrosoftGraphService.getInstance();
+    this.graphService = AdminGraphService.getInstance();
   }
 
   static getInstance(): AuthService {
