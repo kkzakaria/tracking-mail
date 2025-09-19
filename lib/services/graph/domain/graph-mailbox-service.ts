@@ -1697,11 +1697,4 @@ export class GraphMailboxService {
   }
 }
 
-export {
-  GraphMailboxService,
-  type MailboxStats,
-  type MailFolderStats,
-  type MailboxMessageOptions,
-  type PeriodStatsOptions,
-  type SyncResult
-};
+// Exports are already handled by the class and interface declarations above

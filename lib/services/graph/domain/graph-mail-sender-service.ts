@@ -6,6 +6,15 @@
 import { GraphClientFactory } from '../core/graph-client-factory';
 import { GraphRateLimitService } from '../core/graph-rate-limit-service';
 import type { GraphOperationResult } from '@/lib/types/microsoft-graph';
+import type {
+  SendWithTrackingOptions,
+  SendWithTrackingResult,
+  TrackedEmail,
+  TrackingStatus,
+  TrackingEventType
+} from '@/lib/types/email-tracking';
+import { createClient as createSupabaseServerClient } from '@/lib/utils/supabase/server';
+import crypto from 'crypto';
 
 /**
  * Structure d'un message email à envoyer
@@ -86,7 +95,10 @@ export class GraphMailSenderService {
       // Valider le message
       const validationResult = this.validateMailContent(message);
       if (!validationResult.success) {
-        return validationResult;
+        return {
+          success: false,
+          error: validationResult.error
+        };
       }
 
       const clientResult = await this.clientFactory.createClientWithRetry();
@@ -217,7 +229,10 @@ export class GraphMailSenderService {
     try {
       const validationResult = this.validateMailContent(message);
       if (!validationResult.success) {
-        return validationResult;
+        return {
+          success: false,
+          error: validationResult.error
+        };
       }
 
       const clientResult = await this.clientFactory.createClientWithRetry();
@@ -284,7 +299,7 @@ export class GraphMailSenderService {
         ? `/users/${userEmail}/messages/${messageId}/replyAll`
         : `/users/${userEmail}/messages/${messageId}/reply`;
 
-      const response = await this.rateLimitService.executeWithRetry(
+      await this.rateLimitService.executeWithRetry(
         () => client
           .api(endpoint)
           .post({
@@ -337,7 +352,7 @@ export class GraphMailSenderService {
 
       const client = clientResult.data;
 
-      const response = await this.rateLimitService.executeWithRetry(
+      await this.rateLimitService.executeWithRetry(
         () => client
           .api(`/users/${userEmail}/messages/${messageId}/forward`)
           .post({
@@ -496,6 +511,289 @@ export class GraphMailSenderService {
    */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Envoyer un email avec tracking
+   */
+  async sendMailWithTracking(
+    senderEmail: string,
+    options: SendWithTrackingOptions
+  ): Promise<GraphOperationResult<SendWithTrackingResult>> {
+    try {
+      // Générer un tracking ID unique si non fourni
+      const trackingId = options.trackingId || this.generateTrackingId();
+
+      // Préparer le message email
+      const emailMessage: EmailMessage = {
+        subject: options.subject,
+        body: options.enableTracking ?
+          await this.injectTrackingPixel(options.body, trackingId, options.isHtml) :
+          options.body,
+        toRecipients: [options.recipient],
+        isHtml: options.isHtml,
+        saveToSentItems: true
+      };
+
+      // Envoyer l'email via la méthode existante
+      const sendResult = await this.sendMailAsUser(senderEmail, emailMessage);
+
+      if (!sendResult.success) {
+        return {
+          success: false,
+          error: sendResult.error
+        };
+      }
+
+      let trackingData: TrackedEmail | null = null;
+
+      // Créer l'enregistrement de tracking si activé
+      if (options.enableTracking) {
+        const trackingCreateResult = await this.createTrackingRecord({
+          tracking_id: trackingId,
+          user_id: senderEmail,
+          message_id: sendResult.data?.messageId || '',
+          recipient_email: options.recipient,
+          subject_hash: this.hashSubject(options.subject),
+          sent_at: new Date().toISOString(),
+          status: 'sent',
+          pixel_url: this.generatePixelUrl(trackingId),
+          metadata: options.customMetadata || {}
+        });
+
+        if (trackingCreateResult.success) {
+          trackingData = trackingCreateResult.data || null;
+        }
+      }
+
+      const result: SendWithTrackingResult = {
+        messageId: sendResult.data?.messageId,
+        trackingId: options.enableTracking ? trackingId : undefined,
+        status: 'sent',
+        tracking_url: options.enableTracking ? this.generateTrackingUrl(trackingId) : undefined
+      };
+
+      return { success: true, data: result };
+
+    } catch (error) {
+      console.error('Error sending tracked email:', error);
+      return this.handleSendError(error);
+    }
+  }
+
+  /**
+   * Obtenir le statut de tracking d'un email
+   */
+  async getTrackingStatus(trackingId: string): Promise<GraphOperationResult<TrackedEmail>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      const { data, error } = await (supabase as any)
+        .from('email_tracking')
+        .select('*')
+        .eq('tracking_id', trackingId)
+        .single();
+
+      if (error) {
+        return {
+          success: false,
+          error: {
+            code: 'TRACKING_NOT_FOUND',
+            message: 'Email tracking non trouvé',
+            details: error
+          }
+        };
+      }
+
+      return { success: true, data: data as TrackedEmail };
+
+    } catch (error) {
+      console.error('Error getting tracking status:', error);
+      return {
+        success: false,
+        error: {
+          code: 'TRACKING_ERROR',
+          message: 'Erreur lors de la récupération du statut',
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * Mettre à jour le statut de tracking
+   */
+  async updateTrackingStatus(
+    trackingId: string,
+    status: TrackingStatus,
+    eventData?: Record<string, any>
+  ): Promise<GraphOperationResult<boolean>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      // Mettre à jour le statut principal
+      const updateData: Partial<TrackedEmail> = {
+        status,
+        updated_at: new Date().toISOString()
+      };
+
+      // Ajouter les timestamps spécifiques selon le statut
+      if (status === 'opened' && !eventData?.opened_at) {
+        updateData.opened_at = new Date().toISOString();
+      }
+      if (status === 'clicked' && !eventData?.clicked_at) {
+        updateData.clicked_at = new Date().toISOString();
+      }
+      if (status === 'replied' && !eventData?.reply_detected_at) {
+        updateData.reply_detected_at = new Date().toISOString();
+      }
+
+      const { error: updateError } = await (supabase as any)
+        .from('email_tracking')
+        .update(updateData)
+        .eq('tracking_id', trackingId);
+
+      if (updateError) {
+        return {
+          success: false,
+          error: {
+            code: 'UPDATE_ERROR',
+            message: 'Erreur lors de la mise à jour du tracking',
+            details: updateError
+          }
+        };
+      }
+
+      // Ajouter un événement de tracking
+      const { error: eventError } = await (supabase as any)
+        .from('email_tracking_events')
+        .insert({
+          tracking_id: trackingId,
+          event_type: status as TrackingEventType,
+          event_data: eventData || {},
+          ip_address: eventData?.ip_address,
+          user_agent: eventData?.user_agent,
+          occurred_at: new Date().toISOString()
+        });
+
+      if (eventError) {
+        console.warn('Failed to create tracking event:', eventError);
+        // Ne pas faire échouer la mise à jour principale pour cela
+      }
+
+      return { success: true, data: true };
+
+    } catch (error) {
+      console.error('Error updating tracking status:', error);
+      return {
+        success: false,
+        error: {
+          code: 'UPDATE_ERROR',
+          message: 'Erreur lors de la mise à jour du statut',
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * Créer un enregistrement de tracking en base
+   */
+  private async createTrackingRecord(
+    trackingData: Omit<TrackedEmail, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<GraphOperationResult<TrackedEmail>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      const { data, error } = await (supabase as any)
+        .from('email_tracking')
+        .insert({
+          ...trackingData
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return {
+          success: false,
+          error: {
+            code: 'CREATE_TRACKING_ERROR',
+            message: 'Erreur lors de la création du tracking',
+            details: error
+          }
+        };
+      }
+
+      return { success: true, data: data as TrackedEmail };
+
+    } catch (error) {
+      console.error('Error creating tracking record:', error);
+      return {
+        success: false,
+        error: {
+          code: 'CREATE_TRACKING_ERROR',
+          message: 'Erreur lors de la création du tracking',
+          details: error
+        }
+      };
+    }
+  }
+
+  /**
+   * Générer un ID de tracking unique
+   */
+  private generateTrackingId(): string {
+    return 'track_' + crypto.randomBytes(16).toString('hex');
+  }
+
+  /**
+   * Générer un hash du sujet pour la privacy
+   */
+  private hashSubject(subject: string): string {
+    return crypto.createHash('sha256').update(subject).digest('hex').substring(0, 64);
+  }
+
+  /**
+   * Injecter un pixel de tracking dans le contenu HTML
+   */
+  private async injectTrackingPixel(
+    body: string,
+    trackingId: string,
+    isHtml: boolean = false
+  ): Promise<string> {
+    const pixelUrl = this.generatePixelUrl(trackingId);
+
+    if (!isHtml) {
+      // Pour le texte brut, ajouter juste une note discrète
+      return body + '\n\n---\nThis email was sent with tracking enabled.';
+    }
+
+    // Pour HTML, injecter un pixel transparent
+    const trackingPixel = `<img src="${pixelUrl}" width="1" height="1" style="display:none;" alt="" />`;
+
+    // Essayer d'injecter avant la balise de fermeture body
+    if (body.includes('</body>')) {
+      return body.replace('</body>', `${trackingPixel}</body>`);
+    }
+
+    // Sinon, ajouter à la fin
+    return body + trackingPixel;
+  }
+
+  /**
+   * Générer l'URL du pixel de tracking
+   */
+  private generatePixelUrl(trackingId: string): string {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    return `${baseUrl}/api/tracking/pixel/${trackingId}`;
+  }
+
+  /**
+   * Générer l'URL de suivi pour l'utilisateur
+   */
+  private generateTrackingUrl(trackingId: string): string {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    return `${baseUrl}/tracking/${trackingId}`;
   }
 
   /**
