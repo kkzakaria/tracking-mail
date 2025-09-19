@@ -36,13 +36,23 @@ interface EndpointStatus {
 export default function TrackingPage() {
   const [endpoints, setEndpoints] = useState<EndpointStatus[]>([
     {
-      name: 'Send Tracked Email',
-      url: '/api/mail/send-tracked',
+      name: 'Database',
+      url: '/api/health',
       status: 'checking'
     },
     {
-      name: 'Tracking Analytics',
-      url: '/api/mail/tracking/analytics',
+      name: 'Authentication',
+      url: '/api/health',
+      status: 'checking'
+    },
+    {
+      name: 'Email Service',
+      url: '/api/health',
+      status: 'checking'
+    },
+    {
+      name: 'Tracking Service',
+      url: '/api/health',
       status: 'checking'
     },
     {
@@ -63,20 +73,58 @@ export default function TrackingPage() {
   const checkEndpointStatus = async (endpoint: EndpointStatus): Promise<EndpointStatus> => {
     try {
       const startTime = Date.now();
+
+      // Pour les services utilisant l'endpoint health
+      if (endpoint.url === '/api/health') {
+        const response = await fetch(endpoint.url);
+        const responseTime = Date.now() - startTime;
+
+        if (response.ok) {
+          const healthData = await response.json();
+
+          // Chercher le service spécifique dans la réponse
+          const serviceStatus = healthData.services?.find((s: any) => s.name === endpoint.name);
+          const isOnline = serviceStatus?.status === 'healthy';
+
+          return {
+            ...endpoint,
+            status: isOnline ? 'online' : 'offline',
+            responseTime,
+            lastChecked: new Date()
+          };
+        } else {
+          return {
+            ...endpoint,
+            status: 'offline',
+            responseTime,
+            lastChecked: new Date()
+          };
+        }
+      }
+
+      // Pour les autres endpoints (pixel, webhook)
       const response = await fetch(endpoint.url, {
-        method: endpoint.url.includes('send-tracked') ? 'POST' : 'GET',
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json'
-        },
-        body: endpoint.url.includes('send-tracked') ? JSON.stringify({}) : undefined
+        }
       });
 
       const responseTime = Date.now() - startTime;
 
-      // Pour les endpoints qui retournent 401 (auth required), c'est considéré comme "online"
-      const isOnline = response.status === 200 ||
-                      response.status === 401 ||
-                      (endpoint.url.includes('pixel') && response.status === 200);
+      // Logique de détection pour les endpoints spécialisés
+      let isOnline = false;
+
+      if (endpoint.name === 'Pixel Tracking') {
+        // Le pixel tracking répond 200
+        isOnline = response.ok;
+      } else if (endpoint.name === 'Webhook Notifications') {
+        // Le webhook peut retourner 400 (pas de payload) mais le service fonctionne
+        isOnline = response.ok || response.status === 400;
+      } else {
+        // Logique standard
+        isOnline = response.ok;
+      }
 
       return {
         ...endpoint,

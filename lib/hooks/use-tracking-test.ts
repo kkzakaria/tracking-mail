@@ -215,19 +215,31 @@ export function useTrackingTest(): UseTrackingTestReturn {
             'Content-Type': 'application/json',
           },
           body: endpoint.name === 'Send Email' ? JSON.stringify({
-            to: 'test@example.com',
-            subject: 'Test',
-            body: 'Test message',
-            bodyType: 'text',
-            enableTracking: true
+            recipient: 'test@example.com',
+            subject: 'Test Health Check',
+            bodyContent: 'Test message for health check',
+            isHtml: false,
+            enableTracking: false,
+            senderEmail: 'healthcheck@test.com'
           }) : undefined
         });
 
         const responseTime = Date.now() - startTime;
 
-        // Pour les endpoints qui nécessitent une authentification, 401 est considéré comme "online"
+        // Logique de détection adaptée pour chaque type d'endpoint
         const requiresAuth = ['Send Email', 'Tracking Status', 'Analytics'].includes(endpoint.name);
-        const isOnline = response.ok || (response.status === 401 && requiresAuth);
+        let isOnline = false;
+
+        if (endpoint.name === 'Send Email') {
+          // Pour l'endpoint Send Email, 403 (Forbidden) indique que le service fonctionne
+          // mais que l'utilisateur n'a pas accès à la boîte email test (comportement attendu)
+          // 400 (Bad Request) indique que le service fonctionne mais données invalides
+          isOnline = response.ok || response.status === 403 || response.status === 400;
+          console.log(`[DEBUG] Send Email endpoint: status=${response.status}, isOnline=${isOnline}`);
+        } else {
+          // Pour les autres endpoints, logique standard
+          isOnline = response.ok || (response.status === 401 && requiresAuth);
+        }
 
         setEndpointStatuses(prev => prev.map(e =>
           e.name === endpoint.name
