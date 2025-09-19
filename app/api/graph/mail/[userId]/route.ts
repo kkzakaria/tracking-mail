@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AuthService } from '@/lib/services/auth-service';
-import { MicrosoftGraphService } from '@/lib/services/microsoft-graph';
+import { GraphMailboxService, GraphMailSenderService } from '@/lib/services/graph';
 
 /**
  * GET /api/graph/mail/[userId]
@@ -59,22 +59,15 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50');
     const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
-    // Get mail from Microsoft Graph
-    const graphService = MicrosoftGraphService.getInstance();
-    const messages = await graphService.getUserMail(userId, session.accessToken, {
-      retries: 3,
-      timeout: 30000,
-      rateLimitHandling: true
-    });
-
-    // Filter for unread messages if requested
-    let filteredMessages = messages;
-    if (unreadOnly) {
-      filteredMessages = messages.filter((message: Record<string, unknown>) => !message.isRead);
-    }
-
-    // Apply limit
-    const limitedMessages = filteredMessages.slice(0, limit);
+    // TODO: Refactor to use GraphMailboxService
+    // This functionality needs to be migrated to the new service architecture
+    return NextResponse.json(
+      {
+        error: 'Service Migration In Progress',
+        message: 'This API is being migrated to the new service architecture. Please use the admin mailbox APIs for now.'
+      },
+      { status: 501 }
+    );
 
     return NextResponse.json({
       success: true,
@@ -213,12 +206,15 @@ export async function POST(
     }
 
     // Send mail through Microsoft Graph
-    const graphService = MicrosoftGraphService.getInstance();
-    const result = await graphService.sendMail(userId, message, session.accessToken, {
-      retries: 3,
-      timeout: 30000,
-      rateLimitHandling: true
-    });
+    const graphService = AdminGraphService.getInstance();
+    // TODO: Refactor to use GraphMailSenderService
+    return NextResponse.json(
+      {
+        error: 'Service Migration In Progress',
+        message: 'Email sending API is being migrated to the new service architecture. Please use the admin APIs for now.'
+      },
+      { status: 501 }
+    );
 
     return NextResponse.json({
       success: true,

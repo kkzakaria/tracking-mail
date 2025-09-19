@@ -96,8 +96,13 @@ export async function checkSystemHealth(): Promise<{
 
     // Test Microsoft Graph service configuration
     try {
-      const { MicrosoftGraphService } = await import('../services/microsoft-graph');
-      const configValidation = MicrosoftGraphService.validateConfiguration();
+      const { AdminGraphService } = await import('../services/admin-graph-service');
+      const adminService = AdminGraphService.getInstance();
+      const serviceStatus = await adminService.getServiceStatus();
+      const configValidation = {
+        isValid: serviceStatus.success && serviceStatus.data?.isConfigured,
+        errors: serviceStatus.success ? [] : [serviceStatus.error?.message || 'Service not available']
+      };
       if (!configValidation.isValid) {
         issues.push(...configValidation.errors);
       }

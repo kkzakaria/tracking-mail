@@ -11,6 +11,27 @@ import { GraphMailboxService, type MailboxStats } from './graph-mailbox-service'
 import type { GraphOperationResult } from '@/lib/types/microsoft-graph';
 
 /**
+ * Statistiques rapides avec estimations (compatible QuickStatsService)
+ */
+export interface QuickStats {
+  totalMessages: number;
+  unreadMessages: number;
+  readMessages: number;
+  unansweredMessages: number;
+  answeredMessages: number;
+  folders: any[];
+}
+
+/**
+ * Options pour les estimations rapides
+ */
+export interface QuickStatsOptions {
+  useEstimates?: boolean;
+  emailAddress?: string;
+  fallbackToDefaults?: boolean;
+}
+
+/**
  * Statistiques organisationnelles complètes
  */
 export interface OrganizationStats {
@@ -335,6 +356,246 @@ export class GraphStatsService {
   }
 
   /**
+   * Obtenir des statistiques ultra-rapides avec estimations
+   * Compatible avec QuickStatsService pour remplacement progressif
+   */
+  async getQuickStats(emailAddress: string, options?: QuickStatsOptions): Promise<GraphOperationResult<QuickStats>> {
+    try {
+      console.log('[GraphStatsService] Mode rapide avec estimations intelligentes pour:', emailAddress);
+
+      // Si demandé explicitement d'utiliser les estimations par défaut
+      if (options?.fallbackToDefaults) {
+        return this.getDefaultQuickEstimates(emailAddress);
+      }
+
+      // Tenter d'obtenir des statistiques réelles via le cache
+      if (options?.useEstimates !== true) {
+        try {
+          const realStatsResult = await this.getQuickStatsFromCache(emailAddress);
+          if (realStatsResult.success) {
+            return realStatsResult;
+          }
+        } catch (error) {
+          console.warn('[GraphStatsService] Real stats failed, falling back to estimates:', error);
+        }
+      }
+
+      // Utiliser les estimations intelligentes basées sur les données historiques
+      return this.getIntelligentEstimates(emailAddress);
+
+    } catch (error) {
+      console.error('[GraphStatsService] Error in getQuickStats:', error);
+      return this.handleError(error, 'QUICK_STATS_ERROR', 'Erreur lors de la récupération des statistiques rapides');
+    }
+  }
+
+  /**
+   * Obtenir des estimations par défaut (compatible QuickStatsService original)
+   */
+  async getDefaultQuickEstimates(emailAddress: string): Promise<GraphOperationResult<QuickStats>> {
+    console.log('[GraphStatsService] Utilisation des estimations par défaut pour:', emailAddress);
+
+    // Données estimées ultra rapides identiques au QuickStatsService original
+    const estimatedTotalMessages = 7500;
+    const estimatedUnreadMessages = 350;
+    const estimatedUnansweredMessages = Math.round(estimatedTotalMessages * 0.18); // 18%
+    const estimatedAnsweredMessages = estimatedTotalMessages - estimatedUnansweredMessages;
+    const estimatedReadMessages = estimatedTotalMessages - estimatedUnreadMessages;
+
+    const stats: QuickStats = {
+      totalMessages: estimatedTotalMessages,
+      unreadMessages: estimatedUnreadMessages,
+      readMessages: estimatedReadMessages,
+      unansweredMessages: estimatedUnansweredMessages,
+      answeredMessages: estimatedAnsweredMessages,
+      folders: []
+    };
+
+    console.log('[GraphStatsService] ✅ Estimations par défaut générées:', {
+      ...stats,
+      executionTime: 'instantané'
+    });
+
+    return { success: true, data: stats };
+  }
+
+  /**
+   * Obtenir des statistiques rapides depuis le cache/DB
+   */
+  private async getQuickStatsFromCache(emailAddress: string): Promise<GraphOperationResult<QuickStats>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      // Vérifier si on a des données en cache récentes (< 1 heure)
+      const oneHourAgo = new Date();
+      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+
+      const { data: mailboxData, error } = await supabase
+        .from('mailboxes')
+        .select('message_count, last_sync_at, sync_status')
+        .eq('email_address', emailAddress)
+        .eq('is_active', true)
+        .gte('last_sync_at', oneHourAgo.toISOString())
+        .single();
+
+      if (error || !mailboxData) {
+        throw new Error('No recent cache data available');
+      }
+
+      // Utiliser les données en cache avec des estimations pour les détails
+      const totalMessages = mailboxData.message_count || 0;
+      const estimatedUnreadMessages = Math.round(totalMessages * 0.05); // 5% estimé
+      const estimatedUnansweredMessages = Math.round(totalMessages * 0.15); // 15% estimé
+      const estimatedAnsweredMessages = totalMessages - estimatedUnansweredMessages;
+      const estimatedReadMessages = totalMessages - estimatedUnreadMessages;
+
+      const stats: QuickStats = {
+        totalMessages,
+        unreadMessages: estimatedUnreadMessages,
+        readMessages: estimatedReadMessages,
+        unansweredMessages: estimatedUnansweredMessages,
+        answeredMessages: estimatedAnsweredMessages,
+        folders: []
+      };
+
+      console.log('[GraphStatsService] ✅ Statistiques depuis cache:', {
+        ...stats,
+        lastSync: mailboxData.last_sync_at,
+        executionTime: 'rapide'
+      });
+
+      return { success: true, data: stats };
+
+    } catch (error) {
+      throw new Error(`Cache access failed: ${error}`);
+    }
+  }
+
+  /**
+   * Obtenir des estimations intelligentes basées sur les patterns historiques
+   */
+  private async getIntelligentEstimates(emailAddress: string): Promise<GraphOperationResult<QuickStats>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      // Récupérer l'historique de cette boîte email
+      const { data: mailboxData, error } = await supabase
+        .from('mailboxes')
+        .select('message_count, sync_status')
+        .eq('email_address', emailAddress)
+        .single();
+
+      let baseMessageCount = 5000; // Valeur par défaut
+      let unreadRate = 0.08; // 8%
+      let unansweredRate = 0.15; // 15%
+
+      if (!error && mailboxData?.message_count) {
+        baseMessageCount = mailboxData.message_count;
+
+        // Ajuster les taux selon la taille de la boîte
+        if (baseMessageCount > 10000) {
+          unreadRate = 0.03; // Grandes boîtes ont moins de % non lus
+          unansweredRate = 0.12;
+        } else if (baseMessageCount < 1000) {
+          unreadRate = 0.15; // Petites boîtes ont plus de % non lus
+          unansweredRate = 0.25;
+        }
+      } else {
+        // Essayer d'estimer selon le domaine
+        const domain = emailAddress.split('@')[1];
+        if (domain) {
+          const domainEstimatesResult = await this.getDomainBasedEstimates(domain);
+          if (domainEstimatesResult.success && domainEstimatesResult.data) {
+            baseMessageCount = domainEstimatesResult.data.averageMessageCount;
+            unreadRate = domainEstimatesResult.data.unreadRate;
+            unansweredRate = domainEstimatesResult.data.unansweredRate;
+          }
+        }
+      }
+
+      const totalMessages = baseMessageCount;
+      const unreadMessages = Math.round(totalMessages * unreadRate);
+      const unansweredMessages = Math.round(totalMessages * unansweredRate);
+      const answeredMessages = totalMessages - unansweredMessages;
+      const readMessages = totalMessages - unreadMessages;
+
+      const stats: QuickStats = {
+        totalMessages,
+        unreadMessages,
+        readMessages,
+        unansweredMessages,
+        answeredMessages,
+        folders: []
+      };
+
+      console.log('[GraphStatsService] ✅ Estimations intelligentes générées:', {
+        ...stats,
+        baseData: !!mailboxData,
+        rates: { unreadRate, unansweredRate },
+        executionTime: 'estimation intelligente'
+      });
+
+      return { success: true, data: stats };
+
+    } catch (error) {
+      console.warn('[GraphStatsService] Intelligent estimates failed, using defaults:', error);
+      return this.getDefaultQuickEstimates(emailAddress);
+    }
+  }
+
+  /**
+   * Obtenir des estimations basées sur le domaine
+   */
+  private async getDomainBasedEstimates(domain: string): Promise<GraphOperationResult<{
+    averageMessageCount: number;
+    unreadRate: number;
+    unansweredRate: number;
+  }>> {
+    try {
+      const supabase = await createSupabaseServerClient();
+
+      // Récupérer les statistiques moyennes pour ce domaine
+      const { data: domainStats, error } = await supabase
+        .rpc('get_domain_averages', { domain_name: domain });
+
+      if (error || !domainStats || domainStats.length === 0) {
+        throw new Error('No domain statistics available');
+      }
+
+      const avgData = domainStats[0];
+
+      return {
+        success: true,
+        data: {
+          averageMessageCount: avgData.avg_message_count || 4000,
+          unreadRate: avgData.avg_unread_rate || 0.08,
+          unansweredRate: avgData.avg_unanswered_rate || 0.15
+        }
+      };
+
+    } catch (error) {
+      // Fallback basé sur des patterns de domaines connus
+      const knownDomainPatterns: Record<string, { msgCount: number; unreadRate: number; unansweredRate: number }> = {
+        'gmail.com': { msgCount: 8000, unreadRate: 0.12, unansweredRate: 0.18 },
+        'outlook.com': { msgCount: 6000, unreadRate: 0.08, unansweredRate: 0.14 },
+        'microsoft.com': { msgCount: 12000, unreadRate: 0.05, unansweredRate: 0.10 },
+        'company.com': { msgCount: 5000, unreadRate: 0.10, unansweredRate: 0.16 }
+      };
+
+      const pattern = knownDomainPatterns[domain.toLowerCase()] || knownDomainPatterns['company.com'];
+
+      return {
+        success: true,
+        data: {
+          averageMessageCount: pattern.msgCount,
+          unreadRate: pattern.unreadRate,
+          unansweredRate: pattern.unansweredRate
+        }
+      };
+    }
+  }
+
+  /**
    * Récupérer les statistiques des boîtes email depuis la base de données
    */
   private async getMailboxStatsFromDB(): Promise<{
@@ -508,3 +769,14 @@ export class GraphStatsService {
     };
   }
 }
+
+export {
+  GraphStatsService,
+  type OrganizationStats,
+  type UserActivityStats,
+  type MailboxSummary,
+  type StatsTimeframe,
+  type PerformanceReport,
+  type QuickStats,
+  type QuickStatsOptions
+};

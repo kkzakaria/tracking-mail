@@ -13,7 +13,7 @@ export { GraphClientFactory, type GraphClientOptions } from './core/graph-client
 export { GraphUserService, type UserFilterOptions, type UserSelectOptions, type UserStatistics } from './domain/graph-user-service';
 export { GraphMailboxService, type MailboxStats, type MailFolderStats, type MailboxMessageOptions, type PeriodStatsOptions, type SyncResult } from './domain/graph-mailbox-service';
 export { GraphMailSenderService, type EmailMessage, type EmailAttachment, type SendResult, type BulkSendOptions } from './domain/graph-mail-sender-service';
-export { GraphStatsService, type OrganizationStats, type UserActivityStats, type MailboxSummary, type StatsTimeframe, type PerformanceReport } from './domain/graph-stats-service';
+export { GraphStatsService, type OrganizationStats, type UserActivityStats, type MailboxSummary, type StatsTimeframe, type PerformanceReport, type QuickStats, type QuickStatsOptions } from './domain/graph-stats-service';
 
 // Types partagés
 export type * from '../types/graph-services';

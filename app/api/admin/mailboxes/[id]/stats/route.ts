@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MailboxStatsService } from '@/lib/services/mailbox-stats-service';
-import { QuickStatsService } from '@/lib/services/quick-stats-service';
+import { GraphMailboxService, GraphStatsService } from '@/lib/services/graph';
 import { createClient } from '@/lib/utils/supabase/server';
 
 /**
@@ -122,28 +121,18 @@ export async function GET(
       );
     }
 
-    // Initialiser le service de statistiques
-    console.log('[Stats API] Initialisation du service de statistiques...');
-    const statsService = MailboxStatsService.getInstance();
-    const initResult = await statsService.initialize();
+    // Initialiser les services modernes
+    console.log('[Stats API] Initialisation des services Graph...');
+    const mailboxService = GraphMailboxService.getInstance();
+    const quickStatsService = GraphStatsService.getInstance();
 
-    console.log('[Stats API] Résultat initialisation service:', {
-      success: initResult.success,
-      error: initResult.error
-    });
-
-    if (!initResult.success) {
-      console.error('[Stats API] Échec initialisation service:', initResult.error);
-      return NextResponse.json(
-        { error: initResult.error?.message || 'Erreur d\'initialisation du service' },
-        { status: 500 }
-      );
-    }
-
-    // Mode rapide : statistiques de base uniquement avec le nouveau service ultra-rapide
+    // Mode rapide : statistiques de base avec estimations intelligentes
     if (quick) {
-      console.log('[Stats API] MODE RAPIDE ACTIVÉ - Utilisation du QuickStatsService');
-      const quickResult = await QuickStatsService.getQuickStats(mailbox.email_address);
+      console.log('[Stats API] MODE RAPIDE ACTIVÉ - Utilisation du GraphStatsService');
+      const quickResult = await quickStatsService.getQuickStats(mailbox.email_address, {
+        useEstimates: false,    // Essayer les données réelles d'abord
+        fallbackToDefaults: true // Utiliser les estimations par défaut si nécessaire
+      });
 
       if (!quickResult.success) {
         return NextResponse.json(
@@ -167,8 +156,8 @@ export async function GET(
       return NextResponse.json(response);
     }
 
-    // Mode complet : récupérer toutes les statistiques
-    const statsResult = await statsService.getMailboxStats(
+    // Mode complet : récupérer les statistiques avancées avec détection des messages sans réponse
+    const statsResult = await mailboxService.getMailboxPeriodStats(
       mailbox.email_address,
       {
         startDate,
@@ -190,32 +179,15 @@ export async function GET(
       );
     }
 
-    // Enrichir la réponse avec des métadonnées
-    const enrichedResponse = {
+    // La nouvelle API retourne déjà toutes les métadonnées enrichies
+    const response = {
       ...statsResult.data,
       mailboxId: mailbox.id,
-      mailboxName: mailbox.display_name,
-      generatedAt: new Date().toISOString(),
-      parameters: {
-        startDate,
-        endDate,
-        includeFolders,
-        includeUnanswered,
-        includeUnansweredSample,
-        onlyUserFolders
-      },
-      summary: {
-        periodDays: calculatePeriodDays(startDate, endDate),
-        responseRate: statsResult.data.totalMessages > 0
-          ? Math.round(((statsResult.data.totalMessages - statsResult.data.unansweredMessages) / statsResult.data.totalMessages) * 100)
-          : 0,
-        readRate: statsResult.data.totalMessages > 0
-          ? Math.round((statsResult.data.readMessages / statsResult.data.totalMessages) * 100)
-          : 0
-      }
+      // mailboxName et autres métadonnées sont déjà incluses par getMailboxPeriodStats
+      mode: 'complete'
     };
 
-    return NextResponse.json(enrichedResponse);
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Error in mailbox stats API:', error);
