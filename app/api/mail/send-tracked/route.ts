@@ -42,8 +42,8 @@ async function verifyAuth(request: NextRequest) {
 /**
  * Valider les données d'entrée
  */
-function validateTrackingRequest(body: any): { isValid: boolean; error?: string; data?: SendWithTrackingOptions } {
-  const { recipient, subject, bodyContent, isHtml, enableTracking, trackOpens, trackLinks, customMetadata, webhookUrl } = body;
+function validateTrackingRequest(body: any): { isValid: boolean; error?: string; data?: SendWithTrackingOptions & { senderEmail?: string } } {
+  const { recipient, subject, bodyContent, isHtml, enableTracking, trackOpens, trackLinks, customMetadata, webhookUrl, senderEmail } = body;
 
   if (!recipient) {
     return { isValid: false, error: 'recipient est requis' };
@@ -57,10 +57,18 @@ function validateTrackingRequest(body: any): { isValid: boolean; error?: string;
     return { isValid: false, error: 'bodyContent est requis' };
   }
 
+  if (!senderEmail) {
+    return { isValid: false, error: 'senderEmail est requis - vous devez spécifier depuis quelle boîte email envoyer' };
+  }
+
   // Validation du format email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(recipient)) {
     return { isValid: false, error: 'Format d\'email invalide pour recipient' };
+  }
+
+  if (!emailRegex.test(senderEmail)) {
+    return { isValid: false, error: 'Format d\'email invalide pour senderEmail' };
   }
 
   // Validation de la longueur du sujet
@@ -73,7 +81,7 @@ function validateTrackingRequest(body: any): { isValid: boolean; error?: string;
     return { isValid: false, error: 'L\'URL de webhook doit utiliser HTTPS' };
   }
 
-  const trackingOptions: SendWithTrackingOptions = {
+  const trackingOptions: SendWithTrackingOptions & { senderEmail: string } = {
     recipient,
     subject,
     body: bodyContent,
@@ -82,7 +90,8 @@ function validateTrackingRequest(body: any): { isValid: boolean; error?: string;
     trackOpens: trackOpens === true,
     trackLinks: trackLinks === true,
     customMetadata: customMetadata || {},
-    webhookUrl
+    webhookUrl,
+    senderEmail
   };
 
   return { isValid: true, data: trackingOptions };
@@ -122,21 +131,43 @@ export async function POST(request: NextRequest) {
 
     const trackingOptions = validation.data!;
 
-    // Vérifier si l'utilisateur a une adresse email valide
-    if (!user.email) {
+    // Vérifier que l'utilisateur a accès à la boîte email spécifiée
+    const supabase = await createSupabaseServerClient();
+    const { data: assignment, error: assignmentError } = await supabase
+      .from('user_mailbox_assignments')
+      .select(`
+        *,
+        mailboxes (
+          id,
+          email_address,
+          is_active
+        )
+      `)
+      .eq('user_id', user.id)
+      .eq('mailboxes.email_address', trackingOptions.senderEmail)
+      .eq('mailboxes.is_active', true)
+      .single();
+
+    if (assignmentError || !assignment) {
       return NextResponse.json(
-        { error: 'NO_EMAIL', message: 'Adresse email utilisateur manquante' },
-        { status: 400 }
+        {
+          error: 'MAILBOX_ACCESS_DENIED',
+          message: `Vous n'avez pas accès à la boîte email ${trackingOptions.senderEmail}`
+        },
+        { status: 403 }
       );
     }
 
     // Initialiser le service d'envoi
     const mailSenderService = GraphMailSenderService.getInstance();
 
-    // Envoyer l'email avec tracking
+    // Envoyer l'email avec tracking depuis la boîte assignée
     const sendResult = await mailSenderService.sendMailWithTracking(
-      user.email,
-      trackingOptions
+      trackingOptions.senderEmail,
+      {
+        ...trackingOptions,
+        authenticatedUserId: user.id // Ajouter l'UUID de l'utilisateur authentifié
+      }
     );
 
     if (!sendResult.success) {
@@ -151,21 +182,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Logger l'activité d'envoi
-    const supabase = await createSupabaseServerClient();
     await supabase
       .from('user_activity_logs')
       .insert({
         user_id: user.id,
         activity_type: 'email_sent',
-        activity_description: `Email ${trackingOptions.enableTracking ? 'avec tracking' : 'sans tracking'} envoyé à ${trackingOptions.recipient}`,
+        activity_description: `Email ${trackingOptions.enableTracking ? 'avec tracking' : 'sans tracking'} envoyé depuis ${trackingOptions.senderEmail} vers ${trackingOptions.recipient}`,
         resource_id: sendResult.data?.messageId,
         resource_type: 'email',
         metadata: {
+          sender_email: trackingOptions.senderEmail,
           recipient: trackingOptions.recipient,
           subject: trackingOptions.subject,
           tracking_enabled: trackingOptions.enableTracking,
           tracking_id: sendResult.data?.trackingId,
-          has_webhook: !!trackingOptions.webhookUrl
+          has_webhook: !!trackingOptions.webhookUrl,
+          mailbox_id: assignment.mailboxes.id
         }
       });
 
@@ -176,12 +208,13 @@ export async function POST(request: NextRequest) {
         trackingId: sendResult.data?.trackingId,
         status: sendResult.data?.status,
         trackingUrl: sendResult.data?.tracking_url,
+        senderEmail: trackingOptions.senderEmail,
         recipient: trackingOptions.recipient,
         subject: trackingOptions.subject,
         sentAt: new Date().toISOString(),
         trackingEnabled: trackingOptions.enableTracking
       },
-      message: `Email envoyé avec succès ${trackingOptions.enableTracking ? 'avec tracking' : ''}`
+      message: `Email envoyé avec succès depuis ${trackingOptions.senderEmail} ${trackingOptions.enableTracking ? 'avec tracking' : ''}`
     });
 
   } catch (error) {

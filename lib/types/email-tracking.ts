@@ -97,6 +97,9 @@ export interface SendWithTrackingOptions {
   // Options de webhook
   webhookUrl?: string;
   notificationEmail?: string;
+
+  // Utilisateur authentifié (pour RLS)
+  authenticatedUserId?: string;
 }
 
 /**

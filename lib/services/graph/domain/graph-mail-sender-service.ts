@@ -551,7 +551,7 @@ export class GraphMailSenderService {
       if (options.enableTracking) {
         const trackingCreateResult = await this.createTrackingRecord({
           tracking_id: trackingId,
-          user_id: senderEmail,
+          user_id: options.authenticatedUserId || senderEmail, // Utiliser l'UUID authentifié si disponible
           message_id: sendResult.data?.messageId || '',
           recipient_email: options.recipient,
           subject_hash: this.hashSubject(options.subject),
@@ -714,6 +714,7 @@ export class GraphMailSenderService {
         .single();
 
       if (error) {
+        console.error('Error creating tracking record:', error);
         return {
           success: false,
           error: {
