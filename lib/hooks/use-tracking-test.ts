@@ -225,14 +225,18 @@ export function useTrackingTest(): UseTrackingTestReturn {
 
         const responseTime = Date.now() - startTime;
 
+        // Pour les endpoints qui nécessitent une authentification, 401 est considéré comme "online"
+        const requiresAuth = ['Send Email', 'Tracking Status', 'Analytics'].includes(endpoint.name);
+        const isOnline = response.ok || (response.status === 401 && requiresAuth);
+
         setEndpointStatuses(prev => prev.map(e =>
           e.name === endpoint.name
             ? {
                 ...e,
-                status: response.ok ? 'online' as const : 'offline' as const,
+                status: isOnline ? 'online' as const : 'offline' as const,
                 responseTime,
                 lastChecked: new Date(),
-                error: response.ok ? undefined : `HTTP ${response.status}`
+                error: isOnline ? undefined : `HTTP ${response.status}`
               }
             : e
         ));
